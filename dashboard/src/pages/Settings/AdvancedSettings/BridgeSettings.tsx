@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 import {
   Avatar,
   Button,
@@ -6,17 +12,23 @@ import {
   Form,
   Input,
   Popconfirm,
+  Segmented,
   Spin,
   Switch,
+  Table,
   Tag,
+  Tooltip,
 } from "antd";
+import type { ColumnsType } from "antd/es/table";
 import { message } from "@/utils/antdMessage";
 import {
   Activity,
-  Bot,
   Cable,
+  CheckCircle,
   Globe,
+  LayoutGrid,
   Link2,
+  List,
   Lock,
   Plus,
   RefreshCw,
@@ -25,12 +37,14 @@ import {
   Trash2,
   Unplug,
   User,
+  AlertCircle,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
 import { EmptyState } from "../../../components/EmptyState";
 import { useAgent } from "../../../context/AgentContext";
+import { useCardTableView } from "../../../hooks/useCardTableView";
 import { apiErrorMessage } from "../../../utils/apiError";
 import {
   bridgeApi,
@@ -41,6 +55,8 @@ import {
 } from "../../../api/modules/bridge";
 import { TabPanelHeader } from "./TabPanelHeader";
 import styles from "./BridgeSettings.module.less";
+
+const BRIDGE_ACCENT = "#0f766e";
 
 const FIELD_ICON = {
   size: 16 as const,
@@ -128,20 +144,15 @@ function AgentListItem({
         <button
           type="button"
           className={styles.connectedAgentBtn}
-          aria-label={name}
-          data-agent-id={agentId}
           onClick={onClick}
+          data-agent-id={agentId}
         >
           {body}
         </button>
       </li>
     );
   }
-  return (
-    <li className={styles.probeItem} data-agent-id={agentId}>
-      {body}
-    </li>
-  );
+  return <li className={styles.probeItem}>{body}</li>;
 }
 
 function ProbeAgentList({ agents }: { agents: BridgeProbeAgent[] }) {
@@ -170,10 +181,189 @@ function ProbeAgentList({ agents }: { agents: BridgeProbeAgent[] }) {
   );
 }
 
+function RemoteAgentsBlock({
+  row,
+  agents,
+  onOpen,
+}: {
+  row: BridgeConnection;
+  agents: BridgeRemoteAgent[];
+  onOpen: (agentId: string) => void;
+}) {
+  const { t } = useTranslation();
+  if (agents.length > 0) {
+    return (
+      <ul className={styles.probeList}>
+        {agents.map((agent) => (
+          <AgentListItem
+            key={agent.id}
+            agentId={agent.id}
+            name={String(agent.name || agent.remote_agent_id || agent.id)}
+            description={
+              typeof agent.description === "string" ? agent.description : null
+            }
+            iconUrl={typeof agent.icon_url === "string" ? agent.icon_url : null}
+            color={typeof agent.color === "string" ? agent.color : null}
+            kind={typeof agent.kind === "string" ? agent.kind : null}
+            onClick={() => onOpen(agent.id)}
+          />
+        ))}
+      </ul>
+    );
+  }
+  if (row.status === "connected") {
+    return (
+      <p className={styles.meta}>{t("advancedSettings.bridge.noAgents")}</p>
+    );
+  }
+  return null;
+}
+
+interface ConnectionActions {
+  onConnect: (row: BridgeConnection) => Promise<void>;
+  onDisconnect: (row: BridgeConnection) => Promise<void>;
+  onDelete: (row: BridgeConnection) => Promise<void>;
+  onToggleAutoReconnect: (
+    row: BridgeConnection,
+    enabled: boolean,
+  ) => Promise<void>;
+  onOpenAgent: (agentId: string) => void;
+}
+
+function BridgeConnectionCard({
+  row,
+  agents,
+  actions,
+}: {
+  row: BridgeConnection;
+  agents: BridgeRemoteAgent[];
+  actions: ConnectionActions;
+}) {
+  const { t } = useTranslation();
+  const connected = row.status === "connected";
+  return (
+    <section
+      className={styles.backendCard}
+      style={{ "--catalog-accent": BRIDGE_ACCENT } as CSSProperties}
+    >
+      <div className={styles.backendCardHeader}>
+        <div
+          className={styles.backendCardIcon}
+          style={{ color: BRIDGE_ACCENT, background: `${BRIDGE_ACCENT}18` }}
+        >
+          <Link2 size={18} strokeWidth={2} aria-hidden />
+        </div>
+        <div className={styles.backendCardTitle}>
+          <div className={styles.backendCardName}>{row.display_name}</div>
+          <div className={styles.backendCardKind}>
+            <span>{row.peer_username}</span>
+          </div>
+        </div>
+        <div
+          className={connected ? styles.statusBadgeOk : styles.statusBadgeWarn}
+        >
+          {connected ? <CheckCircle size={11} /> : <AlertCircle size={11} />}
+          <span>
+            {t(`advancedSettings.bridge.status.${row.status}`, {
+              defaultValue: row.status,
+            })}
+          </span>
+        </div>
+      </div>
+
+      <div className={styles.backendCardInfo}>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>
+            {t("advancedSettings.bridge.peerUrl")}:
+          </span>
+          <span className={styles.infoValue} title={row.peer_base_url}>
+            {row.peer_base_url}
+          </span>
+        </div>
+        <div className={styles.infoRow}>
+          <span className={styles.infoLabel}>
+            {t("advancedSettings.bridge.username")}:
+          </span>
+          <span className={styles.infoValue}>{row.peer_username}</span>
+        </div>
+        {row.notes ? (
+          <div className={styles.backendCardNote}>{row.notes}</div>
+        ) : null}
+        {row.last_error ? (
+          <p className={styles.metaError}>{row.last_error}</p>
+        ) : null}
+      </div>
+
+      <div className={styles.backendCardActions}>
+        <div className={styles.backendActionsLeft}>
+          <Tooltip title={t("advancedSettings.bridge.autoReconnectHint")}>
+            <span className={styles.autoReconnectInline}>
+              <Switch
+                size="small"
+                checked={row.auto_reconnect !== false}
+                onChange={(checked) =>
+                  void actions.onToggleAutoReconnect(row, checked)
+                }
+              />
+              <span>{t("advancedSettings.bridge.autoReconnect")}</span>
+            </span>
+          </Tooltip>
+        </div>
+        <div className={styles.backendActionsRight}>
+          {connected ? (
+            <Button
+              size="small"
+              type="text"
+              icon={<Unplug size={14} />}
+              onClick={() => void actions.onDisconnect(row)}
+            >
+              {t("advancedSettings.bridge.disconnect")}
+            </Button>
+          ) : (
+            <Button
+              size="small"
+              type="text"
+              icon={<Cable size={14} />}
+              onClick={() => void actions.onConnect(row)}
+            >
+              {t("advancedSettings.bridge.connect")}
+            </Button>
+          )}
+          <Popconfirm
+            title={t("advancedSettings.bridge.deleteConfirmTitle")}
+            description={t("advancedSettings.bridge.deleteConfirmDesc", {
+              name: row.display_name,
+            })}
+            okText={t("common.delete")}
+            cancelText={t("common.cancel")}
+            okButtonProps={{ danger: true }}
+            onConfirm={() => void actions.onDelete(row)}
+          >
+            <Button
+              size="small"
+              type="text"
+              danger
+              icon={<Trash2 size={14} />}
+              aria-label={t("advancedSettings.bridge.delete")}
+            />
+          </Popconfirm>
+        </div>
+      </div>
+
+      <RemoteAgentsBlock
+        row={row}
+        agents={agents}
+        onOpen={actions.onOpenAgent}
+      />
+    </section>
+  );
+}
+
 export default function BridgeSettingsPanel() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { refresh: refreshAgents } = useAgent();
+  const { viewMode, setViewMode, showCardView } = useCardTableView("card");
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<BridgeConnection[]>([]);
   const [agentsByConn, setAgentsByConn] = useState<
@@ -280,18 +470,214 @@ export default function BridgeSettingsPanel() {
     }
   };
 
-  const onDelete = async (row: BridgeConnection) => {
-    try {
-      await bridgeApi.remove(row.connection_id);
-      message.success(t("advancedSettings.bridge.deleted"));
-      await reload();
-      await refreshAgents({ silent: true, force: true });
-    } catch (err) {
-      message.error(
-        apiErrorMessage(err, t("advancedSettings.bridge.deleteFailed"), t),
-      );
-    }
-  };
+  const actions = useMemo<ConnectionActions>(
+    () => ({
+      onConnect: async (row) => {
+        try {
+          await bridgeApi.connect(row.connection_id);
+          await reload();
+          await refreshAgents({ silent: true, force: true });
+        } catch (err) {
+          message.error(
+            apiErrorMessage(err, t("advancedSettings.bridge.createFailed"), t),
+          );
+        }
+      },
+      onDisconnect: async (row) => {
+        try {
+          await bridgeApi.disconnect(row.connection_id);
+          await reload();
+          await refreshAgents({ silent: true, force: true });
+        } catch (err) {
+          message.error(
+            apiErrorMessage(err, t("advancedSettings.bridge.loadFailed"), t),
+          );
+        }
+      },
+      onDelete: async (row) => {
+        try {
+          await bridgeApi.remove(row.connection_id);
+          message.success(t("advancedSettings.bridge.deleted"));
+          await reload();
+          await refreshAgents({ silent: true, force: true });
+        } catch (err) {
+          message.error(
+            apiErrorMessage(err, t("advancedSettings.bridge.deleteFailed"), t),
+          );
+        }
+      },
+      onToggleAutoReconnect: async (row, enabled) => {
+        try {
+          await bridgeApi.patch(row.connection_id, {
+            auto_reconnect: enabled,
+          });
+          await reload();
+          await refreshAgents({ silent: true, force: true });
+        } catch (err) {
+          message.error(
+            apiErrorMessage(err, t("advancedSettings.bridge.loadFailed"), t),
+          );
+        }
+      },
+      onOpenAgent: (agentId) => {
+        navigate(`/chat/${encodeURIComponent(agentId)}`);
+      },
+    }),
+    [navigate, refreshAgents, reload, t],
+  );
+
+  const columns = useMemo<ColumnsType<BridgeConnection>>(
+    () => [
+      {
+        title: t("advancedSettings.bridge.displayName"),
+        dataIndex: "display_name",
+        key: "display_name",
+        ellipsis: true,
+        render: (name: string, row) => (
+          <div className={styles.tableNameCell}>
+            <span
+              className={styles.tableNameIcon}
+              style={{ color: BRIDGE_ACCENT, background: `${BRIDGE_ACCENT}18` }}
+            >
+              <Link2 size={14} aria-hidden />
+            </span>
+            <div className={styles.tableNameText}>
+              <strong>{name}</strong>
+              {row.notes ? (
+                <span className={styles.tableNameNote}>{row.notes}</span>
+              ) : null}
+            </div>
+          </div>
+        ),
+      },
+      {
+        title: t("advancedSettings.bridge.peerUrl"),
+        dataIndex: "peer_base_url",
+        key: "peer_base_url",
+        ellipsis: true,
+      },
+      {
+        title: t("advancedSettings.bridge.username"),
+        dataIndex: "peer_username",
+        key: "peer_username",
+        width: 120,
+        ellipsis: true,
+      },
+      {
+        title: t("advancedSettings.bridge.colStatus"),
+        dataIndex: "status",
+        key: "status",
+        width: 110,
+        render: (status: string) => (
+          <Tag color={statusColor(status)}>
+            {t(`advancedSettings.bridge.status.${status}`, {
+              defaultValue: status,
+            })}
+          </Tag>
+        ),
+      },
+      {
+        title: t("advancedSettings.bridge.autoReconnect"),
+        dataIndex: "auto_reconnect",
+        key: "auto_reconnect",
+        width: 110,
+        render: (value: boolean | undefined, row) => (
+          <Switch
+            size="small"
+            checked={value !== false}
+            onChange={(checked) =>
+              void actions.onToggleAutoReconnect(row, checked)
+            }
+          />
+        ),
+      },
+      {
+        title: t("advancedSettings.bridge.colAgents"),
+        key: "agents",
+        width: 90,
+        render: (_: unknown, row) => {
+          const n = (agentsByConn[row.connection_id] || []).length;
+          return row.status === "connected" ? n : "—";
+        },
+      },
+      {
+        title: t("common.actions"),
+        key: "actions",
+        width: 180,
+        render: (_: unknown, row) => (
+          <div className={styles.tableActions}>
+            {row.status === "connected" ? (
+              <Button
+                size="small"
+                type="link"
+                icon={<Unplug size={14} />}
+                onClick={() => void actions.onDisconnect(row)}
+              >
+                {t("advancedSettings.bridge.disconnect")}
+              </Button>
+            ) : (
+              <Button
+                size="small"
+                type="link"
+                icon={<Cable size={14} />}
+                onClick={() => void actions.onConnect(row)}
+              >
+                {t("advancedSettings.bridge.connect")}
+              </Button>
+            )}
+            <Popconfirm
+              title={t("advancedSettings.bridge.deleteConfirmTitle")}
+              description={t("advancedSettings.bridge.deleteConfirmDesc", {
+                name: row.display_name,
+              })}
+              okText={t("common.delete")}
+              cancelText={t("common.cancel")}
+              okButtonProps={{ danger: true }}
+              onConfirm={() => void actions.onDelete(row)}
+            >
+              <Button
+                size="small"
+                type="link"
+                danger
+                icon={<Trash2 size={14} />}
+              >
+                {t("common.delete")}
+              </Button>
+            </Popconfirm>
+          </div>
+        ),
+      },
+    ],
+    [actions, agentsByConn, t],
+  );
+
+  const viewToggle = (
+    <Segmented
+      size="small"
+      value={viewMode}
+      onChange={(v) => setViewMode(v as "table" | "card")}
+      options={[
+        {
+          value: "card",
+          label: (
+            <span className={styles.viewModeLabel}>
+              <LayoutGrid size={14} />
+              {t("advancedSettings.bridge.viewCard")}
+            </span>
+          ),
+        },
+        {
+          value: "table",
+          label: (
+            <span className={styles.viewModeLabel}>
+              <List size={14} />
+              {t("advancedSettings.bridge.viewTable")}
+            </span>
+          ),
+        },
+      ]}
+    />
+  );
 
   return (
     <>
@@ -301,6 +687,7 @@ export default function BridgeSettingsPanel() {
         description={t("advancedSettings.bridge.description")}
         actions={
           <>
+            {rows.length > 0 ? viewToggle : null}
             <Button
               icon={<RefreshCw size={14} />}
               onClick={() => void reload()}
@@ -329,158 +716,50 @@ export default function BridgeSettingsPanel() {
           description={t("advancedSettings.bridge.emptyDesc")}
         />
       ) : (
-        <div className={styles.list}>
-          {rows.map((row) => (
-            <section key={row.connection_id} className={styles.card}>
-              <header className={styles.cardHead}>
-                <div className={styles.cardTitle}>
-                  <Link2 size={16} />
-                  <strong>{row.display_name}</strong>
-                  <Tag color={statusColor(row.status)}>
-                    {t(`advancedSettings.bridge.status.${row.status}`, {
-                      defaultValue: row.status,
-                    })}
-                  </Tag>
-                </div>
-                <div className={styles.cardActions}>
-                  {row.status === "connected" ? (
-                    <Button
-                      size="small"
-                      icon={<Unplug size={14} />}
-                      onClick={async () => {
-                        try {
-                          await bridgeApi.disconnect(row.connection_id);
-                          await reload();
-                          await refreshAgents({ silent: true, force: true });
-                        } catch (err) {
-                          message.error(
-                            apiErrorMessage(
-                              err,
-                              t("advancedSettings.bridge.loadFailed"),
-                              t,
-                            ),
-                          );
-                        }
-                      }}
-                    >
-                      {t("advancedSettings.bridge.disconnect")}
-                    </Button>
-                  ) : (
-                    <Button
-                      size="small"
-                      type="primary"
-                      icon={<Cable size={14} />}
-                      onClick={async () => {
-                        try {
-                          await bridgeApi.connect(row.connection_id);
-                          await reload();
-                          await refreshAgents({ silent: true, force: true });
-                        } catch (err) {
-                          message.error(
-                            apiErrorMessage(
-                              err,
-                              t("advancedSettings.bridge.createFailed"),
-                              t,
-                            ),
-                          );
-                        }
-                      }}
-                    >
-                      {t("advancedSettings.bridge.connect")}
-                    </Button>
-                  )}
-                  <Popconfirm
-                    title={t("advancedSettings.bridge.deleteConfirmTitle")}
-                    description={t(
-                      "advancedSettings.bridge.deleteConfirmDesc",
-                      { name: row.display_name },
-                    )}
-                    okText={t("common.delete")}
-                    cancelText={t("common.cancel")}
-                    okButtonProps={{ danger: true }}
-                    onConfirm={() => void onDelete(row)}
-                  >
-                    <Button
-                      size="small"
-                      danger
-                      icon={<Trash2 size={14} />}
-                      aria-label={t("advancedSettings.bridge.delete")}
-                    />
-                  </Popconfirm>
-                </div>
-              </header>
-              <p className={styles.meta}>
-                {row.peer_base_url} · {row.peer_username}
-              </p>
-              {row.notes ? <p className={styles.meta}>{row.notes}</p> : null}
-              <div className={styles.autoReconnectRow}>
-                <div className={styles.autoReconnectText}>
-                  <span>{t("advancedSettings.bridge.autoReconnect")}</span>
-                  <span className={styles.autoReconnectHint}>
-                    {t("advancedSettings.bridge.autoReconnectHint")}
-                  </span>
-                </div>
-                <Switch
-                  checked={row.auto_reconnect !== false}
-                  onChange={async (checked) => {
-                    try {
-                      await bridgeApi.patch(row.connection_id, {
-                        auto_reconnect: checked,
-                      });
-                      await reload();
-                      await refreshAgents({ silent: true, force: true });
-                    } catch (err) {
-                      message.error(
-                        apiErrorMessage(
-                          err,
-                          t("advancedSettings.bridge.loadFailed"),
-                          t,
-                        ),
-                      );
-                    }
-                  }}
+        <>
+          <div className={styles.gridToolbar}>
+            <span className={styles.gridCount}>
+              {t("advancedSettings.bridge.totalConnections", {
+                count: rows.length,
+              })}
+            </span>
+          </div>
+          {showCardView ? (
+            <div className={styles.cardGrid}>
+              {rows.map((row) => (
+                <BridgeConnectionCard
+                  key={row.connection_id}
+                  row={row}
+                  agents={agentsByConn[row.connection_id] || []}
+                  actions={actions}
                 />
-              </div>
-              {row.last_error ? (
-                <p className={styles.metaError}>{row.last_error}</p>
-              ) : null}
-              {(agentsByConn[row.connection_id] || []).length > 0 ? (
-                <ul className={styles.probeList}>
-                  {agentsByConn[row.connection_id].map((agent) => (
-                    <AgentListItem
-                      key={agent.id}
-                      agentId={agent.id}
-                      name={String(
-                        agent.name || agent.remote_agent_id || agent.id,
-                      )}
-                      description={
-                        typeof agent.description === "string"
-                          ? agent.description
-                          : null
-                      }
-                      iconUrl={
-                        typeof agent.icon_url === "string"
-                          ? agent.icon_url
-                          : null
-                      }
-                      color={
-                        typeof agent.color === "string" ? agent.color : null
-                      }
-                      kind={typeof agent.kind === "string" ? agent.kind : null}
-                      onClick={() =>
-                        navigate(`/chat/${encodeURIComponent(agent.id)}`)
-                      }
+              ))}
+            </div>
+          ) : (
+            <div className={styles.tableWrap}>
+              <Table<BridgeConnection>
+                rowKey="connection_id"
+                size="middle"
+                pagination={false}
+                columns={columns}
+                dataSource={rows}
+                scroll={{ x: 900 }}
+                expandable={{
+                  expandedRowRender: (row) => (
+                    <RemoteAgentsBlock
+                      row={row}
+                      agents={agentsByConn[row.connection_id] || []}
+                      onOpen={actions.onOpenAgent}
                     />
-                  ))}
-                </ul>
-              ) : row.status === "connected" ? (
-                <p className={styles.meta}>
-                  {t("advancedSettings.bridge.noAgents")}
-                </p>
-              ) : null}
-            </section>
-          ))}
-        </div>
+                  ),
+                  rowExpandable: (row) =>
+                    row.status === "connected" ||
+                    (agentsByConn[row.connection_id] || []).length > 0,
+                }}
+              />
+            </div>
+          )}
+        </>
       )}
 
       <Drawer
@@ -594,6 +873,7 @@ export default function BridgeSettingsPanel() {
             >
               <Input
                 prefix={<User {...FIELD_ICON} />}
+                placeholder={t("advancedSettings.bridge.username")}
                 autoComplete="username"
               />
             </Form.Item>
@@ -609,6 +889,7 @@ export default function BridgeSettingsPanel() {
             >
               <Input.Password
                 prefix={<Lock {...FIELD_ICON} />}
+                placeholder={t("advancedSettings.bridge.password")}
                 autoComplete="current-password"
               />
             </Form.Item>
@@ -618,13 +899,11 @@ export default function BridgeSettingsPanel() {
         {probeResult ? (
           <div className={styles.probePanel}>
             <div className={styles.probePanelHead}>
-              <Bot size={16} strokeWidth={1.8} />
-              <span>
-                {t("advancedSettings.bridge.probeResultTitle", {
-                  name: probeResult.peer_display_name,
-                  count: probeResult.agent_count,
-                })}
-              </span>
+              <Activity size={14} />
+              {t("advancedSettings.bridge.probeResultTitle", {
+                name: probeResult.peer_display_name,
+                count: probeResult.agent_count,
+              })}
             </div>
             <ProbeAgentList agents={probeResult.agents} />
           </div>

@@ -4,39 +4,219 @@
   padding: 48px 0;
 }
 
-.list {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+/* ── Toolbar (storage-style) ───────────────────────────────────── */
 
-.card {
-  border: 1px solid var(--fn-border-primary, #e5e7eb);
-  border-radius: var(--fn-card-radius, 12px);
-  padding: 16px 18px;
-  background: var(--fn-bg-elevated, #fff);
-  box-shadow: var(--fn-card-shadow-normal, 0 1px 3px rgba(0, 0, 0, 0.04));
-  color: var(--fn-text-primary, #111827);
-}
-
-.cardHead {
+.gridToolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  padding: 4px 0 0;
 }
 
-.cardTitle {
+.gridCount {
+  font-size: 13px;
+  color: var(--fn-text-tertiary);
+}
+
+.viewModeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Card grid (mirrors Admin Storage) ─────────────────────────── */
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  row-gap: 16px;
+  column-gap: 12px;
+  padding: 16px 0 24px;
+
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+.backendCard {
+  background: var(--fn-bg-primary, var(--fn-bg-elevated, #fff));
+  border: 2px solid
+    var(--fn-card-border-normal, var(--fn-border-primary, #e5e7eb));
+  border-radius: var(--fn-radius-lg, 12px);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+  color: var(--fn-text-primary, #111827);
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    transform 0.2s,
+    box-shadow 0.2s;
+
+  &:hover {
+    border-color: var(--catalog-accent, var(--fn-color-brand));
+    background: color-mix(
+      in srgb,
+      var(--catalog-accent, var(--fn-color-brand)) 4%,
+      var(--fn-bg-primary, #fff)
+    );
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  @media (max-width: 640px) {
+    &:hover {
+      transform: none;
+    }
+  }
+}
+
+.backendCardHeader {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+}
+
+.backendCardIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--fn-radius-md, 8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.backendCardTitle {
+  flex: 1;
   min-width: 0;
 }
 
-.cardActions {
+.backendCardName {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--fn-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.backendCardKind {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11px;
+  color: var(--fn-text-tertiary);
+  margin-top: 2px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  > span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.backendCardInfo {
+  font-size: 12px;
+  color: var(--fn-text-secondary);
+  line-height: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+.infoRow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.infoLabel {
+  color: var(--fn-text-tertiary);
+  min-width: 68px;
   flex-shrink: 0;
+  font-size: 11px;
+}
+
+.infoValue {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.backendCardNote {
+  font-size: 11px;
+  color: var(--fn-text-tertiary);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backendCardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid var(--fn-border-secondary, #e5e7eb);
+  padding-top: 10px;
+  margin-top: auto;
+  gap: 8px;
+}
+
+.backendActionsLeft {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.backendActionsRight {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.autoReconnectInline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--fn-text-secondary);
+  cursor: default;
+}
+
+.statusBadgeOk,
+.statusBadgeWarn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.statusBadgeOk {
+  color: #52c41a;
+}
+
+.statusBadgeWarn {
+  color: #8c8c8c;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--fn-bg-secondary, #f7f8fa);
+  border: 1px solid var(--fn-border-secondary, #e5e7eb);
 }
 
 .meta {
@@ -54,35 +234,63 @@
   word-break: break-word;
 }
 
-.autoReconnectRow {
+/* ── Table view ────────────────────────────────────────────────── */
+
+.tableWrap {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.tableNameCell {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: var(--fn-bg-secondary, #f7f8fa);
+  gap: 10px;
+  min-width: 0;
 }
 
-.autoReconnectText {
+.tableNameIcon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tableNameText {
   display: flex;
   flex-direction: column;
-  gap: 2px;
   min-width: 0;
-  font-size: 13px;
-  color: var(--fn-text-primary, #111827);
+  gap: 2px;
+
+  strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
-.autoReconnectHint {
+.tableNameNote {
   font-size: 12px;
-  color: var(--fn-text-secondary, #6b7280);
-  line-height: 1.4;
+  color: var(--fn-text-tertiary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
+
+.tableActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  align-items: center;
+}
+
+/* ── Probe / agent lists ───────────────────────────────────────── */
 
 .probeList {
   list-style: none;
-  margin: 12px 0 0;
+  margin: 4px 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -109,8 +317,12 @@
 }
 
 .connectedAgentBtn:hover {
-  border-color: var(--fn-color-brand, #e85d75);
-  background: var(--fn-bg-hover, rgba(232, 93, 117, 0.04));
+  border-color: var(--catalog-accent, var(--fn-color-brand, #e85d75));
+  background: color-mix(
+    in srgb,
+    var(--catalog-accent, var(--fn-color-brand, #e85d75)) 6%,
+    var(--fn-bg-secondary, #f7f8fa)
+  );
 }
 
 .probeBody {
