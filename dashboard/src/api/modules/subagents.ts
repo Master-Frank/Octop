@@ -63,7 +63,7 @@ export function installSubagent(
   agentId: string,
   slug: string,
 ): Promise<{ installed: boolean; slug: string; path: string }> {
-  return request(`/agents/${agentId}/subagents/install`, {
+  return request(`/agents/${encodeURIComponent(agentId)}/subagents/install`, {
     method: "POST",
     body: JSON.stringify({ slug }),
   });
@@ -72,5 +72,7 @@ export function installSubagent(
 export function listAgentSubagents(
   agentId: string,
 ): Promise<AgentSubagentSummary[]> {
-  return request<AgentSubagentSummary[]>(`/agents/${agentId}/subagents`);
+  return request<AgentSubagentSummary[]>(
+    `/agents/${encodeURIComponent(agentId)}/subagents`,
+  );
 }

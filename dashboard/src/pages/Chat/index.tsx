@@ -614,13 +614,22 @@ function ChatPageInner() {
   // Subset for the chat-side *pickers* (`@` button popover, `@` mention menu).
   // Only running experts — picking a stopped one would dispatch into an
   // unloaded harness and silently fail.
-  const chatAgentOptionsPickable = useMemo(
-    () =>
-      selectEnabledExperts(agents, null, { pinActive: false })
-        .filter((item) => !isTeamAgent(item))
-        .map(projectChatAgentOption),
-    [agents],
-  );
+  // Bridge sessions: only peers on the same connection (local ask_agent
+  // cannot reach them; peer ask_agent cannot reach local experts).
+  const chatAgentOptionsPickable = useMemo(() => {
+    let list = selectEnabledExperts(agents, null, { pinActive: false }).filter(
+      (item) => !isTeamAgent(item),
+    );
+    if (activeAgent?.bridge && activeAgent.bridge_connection_id) {
+      const cid = activeAgent.bridge_connection_id;
+      list = list.filter(
+        (item) => item.bridge && item.bridge_connection_id === cid,
+      );
+    } else {
+      list = list.filter((item) => !item.bridge);
+    }
+    return list.map(projectChatAgentOption);
+  }, [agents, activeAgent?.bridge, activeAgent?.bridge_connection_id]);
   const teamExpertOptions = useMemo(() => {
     if (!isTeamChat) return chatAgentOptionsPickable;
     const ids = new Set(activeAgent?.member_ids ?? []);
