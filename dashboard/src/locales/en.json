@@ -204,7 +204,7 @@
     "experts": "Experts",
     "tasks": "Automation",
     "connectors": "Connectors",
-    "bridge": "Remote bridge",
+    "bridge": "Cloud collab",
     "acp": "ACP",
     "agents": "Agents",
     "providers": "Providers",
@@ -1191,7 +1191,12 @@
       "banner": "Remote expert · via “{{name}}” bridge",
       "flag": "Remote",
       "manageOnPeer": "Edit on the remote instance",
-      "manageToast": "This is a remote expert. Manage skills, models, knowledge bases, and related settings on the peer Octop."
+      "manageToast": "This is a remote expert. Manage skills, models, knowledge bases, and related settings on the peer Octop.",
+      "editBanner": "You are editing a remote expert. Changes are saved on the peer Octop.",
+      "editSkillPackages": "Skill packages stay on this instance and cannot be installed onto a remote expert. That tab is hidden.",
+      "editTools": "ACP runners execute on the peer. Plugin icons that are local files on the peer may not preview here.",
+      "editPlugins": "You can toggle plugins already installed on the peer. Install, uninstall, and marketplace stay on the peer Octop.",
+      "editChannels": "QR login and bot-creator flows run on the peer machine, not this browser."
     },
     "pushToast": {
       "title": "{{name}} sent a reminder",
@@ -3271,8 +3276,8 @@
   "advancedSettings": {
     "description": "Manage runtime configuration and environment variables.",
     "bridge": {
-      "title": "Remote bridge",
-      "description": "Link this Octop to another instance. Browse remote experts and chat through the bridge; conversation history stays on the expert’s side.",
+      "title": "Cloud collaboration",
+      "description": "Link this Octop to another instance. Browse remote experts and chat across instances; conversation history stays on the expert’s side.",
       "add": "Add connection",
       "addConfirm": "Save & connect",
       "created": "Saved and connected to remote",
@@ -3286,10 +3291,12 @@
       "deleteConfirmTitle": "Delete this bridge connection?",
       "deleteConfirmDesc": "This disconnects “{{name}}” and removes stored remote credentials. This cannot be undone.",
       "editTitle": "Edit connection",
-      "editHint": "Rename the bridge or update private notes. Remote address and credentials stay the same.",
+      "editHint": "Update display info and the remote account. Changing the address, username, or password re-authenticates; a previously connected link reconnects automatically. Leave the password blank to keep the current one.",
       "editSaved": "Connection updated",
       "editFailed": "Could not update the connection",
-      "emptyTitle": "No remote bridges yet",
+      "passwordKeepHint": "Leave blank to keep the current password",
+      "passwordKeepPlaceholder": "••••••••",
+      "emptyTitle": "No cloud collaborations yet",
       "emptyDesc": "Add a remote Octop address with username and password to start.",
       "drawerHint": "The display name is used for chat group switching and must be unique. Probe first to verify the account; Save & connect only persists after login and the bridge handshake succeed — a failure will not keep the name.",
       "sectionIdentity": "Display",
@@ -3305,6 +3312,22 @@
       "displayNamePlaceholder": "e.g. Company cloud",
       "displayNameRequired": "Enter a display name",
       "displayNameHint": "Shown when switching remote groups in chat; must be unique",
+      "icon": "Icon",
+      "iconHint": "Shown on remote expert cards (icon + display name)",
+      "iconLabels": {
+        "cloudy": "Cloud",
+        "cloud": "Cloud outline",
+        "cloud-cog": "Cloud service",
+        "globe": "Public network",
+        "home": "On this machine",
+        "laptop": "Workstation",
+        "monitor": "Desktop",
+        "server": "On-prem",
+        "radio-tower": "Edge node",
+        "wifi": "Near-edge network",
+        "satellite": "Remote access",
+        "map-pin": "On-site"
+      },
       "notes": "Notes",
       "notesPlaceholder": "Optional private notes",
       "peerUrl": "Remote address",
@@ -5814,7 +5837,7 @@
       "subtitle": "Environment variables, backup, HTTPS, and updates"
     },
     "bridge": {
-      "title": "Remote bridge",
+      "title": "Cloud collaboration",
       "subtitle": "Link another Octop instance and chat with its experts from this dashboard"
     },
     "security": {

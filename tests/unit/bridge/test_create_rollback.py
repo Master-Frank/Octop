@@ -21,6 +21,7 @@ def _row(**overrides: Any) -> BridgeConnectionRow:
         "peer_username": "bob",
         "display_name": "Cloud",
         "notes": None,
+        "icon_name": None,
         "credential_blob": b"x",
         "access_token_blob": b"y",
         "token_expires_at": None,

@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS bridge_connections (
   peer_username           TEXT NOT NULL,
   display_name            TEXT NOT NULL,
   notes                   TEXT,
+  icon_name               TEXT,
   credential_blob         BYTEA,
   access_token_blob       BYTEA,
   token_expires_at        INTEGER,

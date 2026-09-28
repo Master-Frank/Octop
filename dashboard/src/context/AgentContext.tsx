@@ -69,6 +69,8 @@ export interface OctopAgent {
   bridge_connection_id?: string | null;
   /** Display name of the bridge link (chat group label). */
   bridge_connection_name?: string | null;
+  /** Icon selected for the bridge link (shown on remote expert badges). */
+  bridge_connection_icon?: string | null;
 }
 
 interface AgentContextValue {
@@ -151,6 +153,7 @@ export function projectChatAgentOption(agent: OctopAgent): {
   owner_username: string | null;
   bridge: boolean;
   bridge_connection_name: string | null;
+  bridge_connection_icon: string | null;
 } {
   return {
     agent_id: agent.agent_id,
@@ -163,6 +166,7 @@ export function projectChatAgentOption(agent: OctopAgent): {
     owner_username: agent.owner_username ?? null,
     bridge: Boolean(agent.bridge),
     bridge_connection_name: agent.bridge_connection_name ?? null,
+    bridge_connection_icon: agent.bridge_connection_icon ?? null,
   };
 }
 
@@ -242,7 +246,11 @@ function mapBridgeAgent(
     kind?: string | null;
     state?: string | null;
   },
-  conn: { connection_id: string; display_name: string },
+  conn: {
+    connection_id: string;
+    display_name: string;
+    icon_name?: string | null;
+  },
 ): OctopAgent {
   const agentId = String(agent.agent_id || agent.id || "");
   return {
@@ -266,6 +274,10 @@ function mapBridgeAgent(
     bridge: true,
     bridge_connection_id: conn.connection_id,
     bridge_connection_name: conn.display_name,
+    bridge_connection_icon:
+      typeof conn.icon_name === "string" && conn.icon_name.trim()
+        ? conn.icon_name.trim()
+        : null,
   };
 }
 

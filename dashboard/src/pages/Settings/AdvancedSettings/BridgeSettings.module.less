@@ -58,9 +58,8 @@
 }
 
 .backendCard {
-  background: var(--fn-bg-primary, var(--fn-bg-elevated, #fff));
-  border: 2px solid
-    var(--fn-card-border-normal, var(--fn-border-primary, #e5e7eb));
+  background: var(--fn-bg-elevated, var(--fn-bg-secondary, #fff));
+  border: 1px solid var(--fn-border-primary, #e5e7eb);
   border-radius: var(--fn-radius-lg, 12px);
   padding: 16px;
   display: flex;
@@ -68,27 +67,10 @@
   gap: 10px;
   height: 100%;
   color: var(--fn-text-primary, #111827);
-  transition:
-    border-color 0.2s,
-    background 0.2s,
-    transform 0.2s,
-    box-shadow 0.2s;
+  transition: border-color 0.2s;
 
   &:hover {
     border-color: var(--catalog-accent, var(--fn-color-brand));
-    background: color-mix(
-      in srgb,
-      var(--catalog-accent, var(--fn-color-brand)) 4%,
-      var(--fn-bg-primary, #fff)
-    );
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
-  }
-
-  @media (max-width: 640px) {
-    &:hover {
-      transform: none;
-    }
   }
 }
 
@@ -99,13 +81,14 @@
 }
 
 .backendCardIcon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--fn-radius-md, 8px);
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: var(--fn-text-secondary);
+  background: none;
 }
 
 .backendCardTitle {
@@ -114,32 +97,32 @@
 }
 
 .backendCardName {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
   font-size: 18px;
   font-weight: 700;
   line-height: 1.35;
   color: var(--fn-text-primary);
+}
+
+.backendCardNameText {
+  min-width: 0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.backendCardKind {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.backendCardUser {
   min-width: 0;
-  font-size: 11px;
-  color: var(--fn-text-tertiary);
-  margin-top: 2px;
+  flex-shrink: 1;
+  font-size: 13px;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-
-  > span:first-child {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+  color: var(--fn-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .backendCardInfo {
@@ -274,6 +257,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  color: var(--fn-color-brand);
+  background: color-mix(in srgb, var(--fn-color-brand) 10%, transparent);
 }
 
 .tableNameText {
@@ -464,6 +449,40 @@
   letter-spacing: 0.02em;
   color: var(--fn-text-tertiary);
   text-transform: uppercase;
+}
+
+.iconPicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.iconOption {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--fn-border-primary);
+  background: var(--fn-bg-elevated, var(--fn-bg-primary));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--fn-text-secondary);
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    color 0.15s;
+}
+
+.iconOption:hover {
+  border-color: var(--fn-color-brand);
+  color: var(--fn-color-brand);
+}
+
+.iconOptionActive {
+  border-color: var(--fn-color-brand);
+  background: color-mix(in srgb, var(--fn-color-brand) 12%, transparent);
+  color: var(--fn-color-brand);
 }
 
 .drawerFooter {

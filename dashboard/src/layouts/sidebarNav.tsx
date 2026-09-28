@@ -11,7 +11,7 @@ import {
   Users as UsersIcon,
   Activity,
   Share2,
-  Cable,
+  Cloudy,
   Sparkles,
   Puzzle,
   Package,
@@ -210,7 +210,7 @@ export function buildNavSections(
   settingsItems.push({
     key: "bridge",
     path: "/bridge",
-    icon: <Cable size={iconSize} strokeWidth={iconStroke} />,
+    icon: <Cloudy size={iconSize} strokeWidth={iconStroke} />,
     labelKey: "nav.bridge",
     badge: "Beta",
   });

@@ -127,6 +127,7 @@ class BridgeManager:
             "peer_username": row.peer_username,
             "display_name": row.display_name,
             "notes": row.notes,
+            "icon_name": row.icon_name,
             "status": status,
             "last_error": row.last_error,
             "last_seen_at": row.last_seen_at,
@@ -205,6 +206,7 @@ class BridgeManager:
         password: str,
         display_name: str,
         notes: str | None = None,
+        icon_name: str | None = None,
         connect: bool = True,
     ) -> BridgeConnectionRow:
         """Create a bridge link.
@@ -217,6 +219,7 @@ class BridgeManager:
         username = peer_username.strip()
         name = display_name.strip()
         note = (notes or "").strip() or None
+        icon = (icon_name or "").strip() or None
         if not username or not password:
             raise OctopError(ErrorCode.BRIDGE_AUTH_FAILED, "username and password required")
         if not name:
@@ -250,6 +253,7 @@ class BridgeManager:
             peer_username=username,
             display_name=name,
             notes=note,
+            icon_name=icon,
             credential_blob=cred_blob,
             access_token_blob=token_blob,
             token_expires_at=expires_at,
@@ -346,7 +350,17 @@ class BridgeManager:
         display_name: str | None = None,
         notes: str | None = None,
         update_notes: bool = False,
+        icon_name: str | None = None,
+        update_icon: bool = False,
+        peer_base_url: str | None = None,
+        peer_username: str | None = None,
+        password: str | None = None,
     ) -> BridgeConnectionRow:
+        """Update display / notes / icon and optionally remote endpoint credentials.
+
+        When URL, username, or password changes, re-login against the peer and
+        bounce the live Bridge session if it was connected.
+        """
         row = self.get_owned(connection_id, owner_user_id)
         name = row.display_name
         if display_name is not None:
@@ -368,10 +382,83 @@ class BridgeManager:
         note = row.notes
         if update_notes:
             note = (notes or "").strip() or None
-        updated = self._repo.update_meta(connection_id, display_name=name, notes=note)
+        icon = row.icon_name
+        if update_icon:
+            icon = (icon_name or "").strip() or None
+
+        next_user = peer_username.strip() if peer_username is not None else row.peer_username
+        if not next_user:
+            raise OctopError(ErrorCode.BRIDGE_AUTH_FAILED, "username required")
+
+        pwd_raw = (password or "").strip()
+        url_changed = False
+        next_base = row.peer_base_url
+        if peer_base_url is not None:
+            stripped = peer_base_url.strip().rstrip("/")
+            stored = row.peer_base_url.rstrip("/")
+            if stripped != stored:
+                url_changed = True
+
+        user_changed = next_user != row.peer_username
+        password_changed = bool(pwd_raw)
+        need_reauth = url_changed or user_changed or password_changed
+
+        if not need_reauth:
+            updated = self._repo.update_settings(
+                connection_id,
+                display_name=name,
+                notes=note,
+                icon_name=icon,
+            )
+            if updated is None:
+                raise OctopError(ErrorCode.BRIDGE_NOT_FOUND, "bridge connection not found")
+            return updated
+
+        if password_changed:
+            secret = pwd_raw
+        else:
+            if not row.credential_blob:
+                raise OctopError(ErrorCode.BRIDGE_AUTH_FAILED, "password required")
+            secret = str(decrypt_payload(self._secrets, row.credential_blob).get("password") or "")
+            if not secret:
+                raise OctopError(ErrorCode.BRIDGE_AUTH_FAILED, "password required")
+
+        if url_changed:
+            assert peer_base_url is not None
+            next_base = normalize_peer_base_url(peer_base_url)
+
+        login = await login_peer(base_url=next_base, username=next_user, password=secret)
+        token = str(login["access_token"])
+        expires_in = int(login.get("expires_in") or 0)
+        from octop.infra.db.repos._base import now_ts
+
+        expires_at = now_ts() + expires_in if expires_in > 0 else None
+        live = self._sessions.get(connection_id)
+        was_live = live is not None and not live.closed
+
+        updated = self._repo.update_settings(
+            connection_id,
+            display_name=name,
+            notes=note,
+            icon_name=icon,
+            peer_base_url=next_base,
+            peer_username=next_user,
+            credential_blob=encrypt_payload(self._secrets, {"password": secret}),
+            access_token_blob=encrypt_payload(self._secrets, {"access_token": token}),
+            token_expires_at=expires_at,
+            update_credentials=True,
+        )
         if updated is None:
             raise OctopError(ErrorCode.BRIDGE_NOT_FOUND, "bridge connection not found")
-        return updated
+
+        await self.disconnect(connection_id)
+        self._user_stopped.discard(connection_id)
+        if was_live or updated.auto_reconnect:
+            try:
+                return await self.connect(connection_id, owner_user_id=owner_user_id)
+            except OctopError:
+                return self._repo.get(connection_id) or updated
+        return self._repo.get(connection_id) or updated
 
     async def resume_auto_connections(self) -> None:
         """Boot-time: dial every connection with auto_reconnect enabled."""

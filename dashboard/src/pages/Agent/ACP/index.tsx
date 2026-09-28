@@ -23,11 +23,20 @@ import styles from "./index.module.less";
 
 const EMPTY_RUNNERS: Record<string, ACPRunnerConfig> = {};
 
+interface ACPPanelProps {
+  /** When set (Experts tools drawer), use this agent instead of the chat selection. */
+  agentId?: string | null;
+}
+
 /** ACP runners manager — shared by `/acp` and Personalization → Tools. */
-export function ACPPanel() {
+export function ACPPanel({ agentId: agentIdProp }: ACPPanelProps = {}) {
   const { t } = useTranslation();
   const { modal, message } = App.useApp();
-  const { activeAgentId, agents } = useAgent();
+  const { activeAgentId: contextAgentId, agents } = useAgent();
+  const activeAgentId =
+    agentIdProp !== undefined ? agentIdProp : contextAgentId;
+  /** Only the Experts tools drawer should tunnel account-global ACP runners. */
+  const runnersScopeId = agentIdProp;
   const [runners, setRunners] =
     useState<Record<string, ACPRunnerConfig>>(EMPTY_RUNNERS);
   const [toolEnabled, setToolEnabled] = useState(false);
@@ -63,7 +72,7 @@ export function ACPPanel() {
     setRunnersLoading(true);
     void (async () => {
       try {
-        const data = await acpApi.getGlobalRunners();
+        const data = await acpApi.getGlobalRunners(runnersScopeId);
         if (!cancelled) {
           setRunners(data.runners || EMPTY_RUNNERS);
         }
@@ -80,7 +89,7 @@ export function ACPPanel() {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, runnersScopeId]);
 
   useEffect(() => {
     if (!activeAgentId) {
@@ -136,11 +145,11 @@ export function ACPPanel() {
 
   const persistRunners = useCallback(
     async (next: Record<string, ACPRunnerConfig>) => {
-      const saved = await acpApi.updateGlobalRunners(next);
+      const saved = await acpApi.updateGlobalRunners(next, runnersScopeId);
       setRunners(saved.runners || EMPTY_RUNNERS);
       return saved.runners;
     },
-    [],
+    [runnersScopeId],
   );
 
   const persistToolEnabled = useCallback(

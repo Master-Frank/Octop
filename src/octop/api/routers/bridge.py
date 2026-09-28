@@ -31,6 +31,11 @@ class BridgeCreateBody(BaseModel):
         description="Unique display name for chat group switching",
     )
     notes: str | None = Field(default=None, max_length=500, description="Optional notes")
+    icon_name: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Optional Lucide icon key shown on remote expert badges",
+    )
     connect: bool = Field(default=True, description="Dial Bridge WS immediately after login")
 
 
@@ -93,6 +98,7 @@ async def create_connection(
         password=body.password,
         display_name=body.display_name,
         notes=body.notes,
+        icon_name=body.icon_name,
         connect=body.connect,
     )
     return cast(dict[str, Any], mgr.connection_public(row))
@@ -155,6 +161,25 @@ class BridgePatchBody(BaseModel):
         max_length=500,
         description="Optional notes; send empty string to clear",
     )
+    icon_name: str | None = Field(
+        default=None,
+        max_length=64,
+        description="Lucide icon key; send empty string to clear",
+    )
+    peer_base_url: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Remote Octop base URL (re-login when changed)",
+    )
+    peer_username: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Remote username (re-login when changed)",
+    )
+    password: str | None = Field(
+        default=None,
+        description="New remote password; omit or empty to keep the stored secret",
+    )
 
 
 @router.patch(
@@ -170,13 +195,27 @@ async def patch_connection(
     mgr = _bridge(server)
     fields_set = body.model_fields_set
     row = None
-    if "display_name" in fields_set or "notes" in fields_set:
+    meta_keys = {
+        "display_name",
+        "notes",
+        "icon_name",
+        "peer_base_url",
+        "peer_username",
+        "password",
+    }
+    if fields_set & meta_keys:
+        pwd = body.password if "password" in fields_set else None
         row = await mgr.update_connection_meta(
             connection_id,
             owner_user_id=user.id,
             display_name=body.display_name,
             notes=body.notes,
             update_notes="notes" in fields_set,
+            icon_name=body.icon_name,
+            update_icon="icon_name" in fields_set,
+            peer_base_url=body.peer_base_url if "peer_base_url" in fields_set else None,
+            peer_username=body.peer_username if "peer_username" in fields_set else None,
+            password=pwd,
         )
     if body.auto_reconnect is not None:
         row = await mgr.set_auto_reconnect(

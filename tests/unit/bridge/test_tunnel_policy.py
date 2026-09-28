@@ -26,6 +26,11 @@ def test_allows_composer_readonly_paths() -> None:
     assert is_tunnel_path_allowed("GET", "/api/knowledge-bases/capability")
     assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/status")
     assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/subagents")
+    assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/tool-settings")
+    assert is_tunnel_path_allowed("PATCH", "/api/agents/01ABC/tool-settings/shell")
+    assert is_tunnel_path_allowed("POST", "/api/agents/01ABC/reload")
+    assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/acp")
+    assert is_tunnel_path_allowed("PUT", "/api/agents/01ABC/acp/tool")
     assert not is_tunnel_path_allowed("GET", "/api/agents/01ABC/history-migration/status")
     assert not is_tunnel_path_allowed("GET", "/api/agents/01ABC/skill-packages")
     assert not is_tunnel_path_allowed("POST", "/api/providers/resolved")
@@ -45,6 +50,20 @@ def test_allows_browser_viewer_paths() -> None:
     assert not is_tunnel_path_allowed("POST", "/api/browser/uninstall")
     assert not is_tunnel_path_allowed("POST", "/api/browser/shutdown")
     assert not is_tunnel_path_allowed("GET", "/api/browser/record-replay/status")
+
+
+def test_allows_experts_non_agent_paths() -> None:
+    assert is_tunnel_path_allowed("GET", "/api/plugins/agents/01ABC")
+    assert is_tunnel_path_allowed("PATCH", "/api/plugins/agents/01ABC/tools")
+    assert is_tunnel_path_allowed("GET", "/api/mbti/current")
+    assert is_tunnel_path_allowed("POST", "/api/mbti/apply")
+    assert is_tunnel_path_allowed("GET", "/api/subagent-catalog")
+    assert is_tunnel_path_allowed("GET", "/api/subagent-catalog/divisions")
+    assert is_tunnel_path_allowed("GET", "/api/acp")
+    assert is_tunnel_path_allowed("PUT", "/api/acp/opencode")
+    assert not is_tunnel_path_allowed("GET", "/api/plugins")
+    assert not is_tunnel_path_allowed("POST", "/api/plugins/install")
+    assert not is_tunnel_path_allowed("POST", "/api/subagent-catalog")
 
 
 def test_denies_management_and_auth_paths() -> None:

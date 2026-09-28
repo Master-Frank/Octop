@@ -6,7 +6,10 @@ import json
 
 import pytest
 
-from octop.api.middleware.bridge_proxy import _local_bridge_shadow_response
+from octop.api.middleware.bridge_proxy import (
+    _local_bridge_shadow_response,
+    resolve_tunnel_target,
+)
 from octop.infra.errors import ErrorCode, OctopError
 
 
@@ -49,3 +52,32 @@ def test_other_paths_pass_through() -> None:
         )
         is None
     )
+
+
+def test_resolve_agents_and_plugins_path() -> None:
+    agents = resolve_tunnel_target("/api/agents/bridge:cid1:aid1/tool-settings")
+    assert agents is not None
+    assert agents.remote_path == "/api/agents/aid1/tool-settings"
+    assert agents.ref.connection_id == "cid1"
+
+    plugins = resolve_tunnel_target("/api/plugins/agents/bridge:cid1:aid1/tools")
+    assert plugins is not None
+    assert plugins.remote_path == "/api/plugins/agents/aid1/tools"
+
+
+def test_resolve_header_tunneled_paths() -> None:
+    mbti = resolve_tunnel_target("/api/mbti/current", "bridge:cid1:aid1")
+    assert mbti is not None
+    assert mbti.remote_path == "/api/mbti/current"
+    assert mbti.ref.remote_agent_id == "aid1"
+
+    catalog = resolve_tunnel_target("/api/subagent-catalog/divisions", "bridge:cid1:aid1")
+    assert catalog is not None
+    acp = resolve_tunnel_target("/api/acp", "bridge:cid1:aid1")
+    assert acp is not None
+
+
+def test_resolve_ignores_local_header_and_unscoped_paths() -> None:
+    assert resolve_tunnel_target("/api/mbti/current", "01LOCAL") is None
+    assert resolve_tunnel_target("/api/users", "bridge:cid1:aid1") is None
+    assert resolve_tunnel_target("/api/plugins/install", "bridge:cid1:aid1") is None

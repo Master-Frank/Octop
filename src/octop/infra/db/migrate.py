@@ -1563,6 +1563,7 @@ def _ensure_bridge_connections_schema(db: DatabasePool) -> None:
     if not _table_exists(db, "bridge_connections"):
         return
     _ensure_column(db, "bridge_connections", "notes", "TEXT")
+    _ensure_column(db, "bridge_connections", "icon_name", "TEXT")
     _ensure_column(db, "bridge_connections", "auto_reconnect", "INTEGER NOT NULL DEFAULT 1")
     # Make every (owner, display_name) unique before creating the index.
     # Empty names are filled from peer username / URL; colliding names get a suffix.

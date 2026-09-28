@@ -17,6 +17,7 @@ class BridgeConnectionRow:
     peer_username: str
     display_name: str
     notes: str | None
+    icon_name: str | None
     credential_blob: bytes | None
     access_token_blob: bytes | None
     token_expires_at: int | None
@@ -31,8 +32,9 @@ class BridgeConnectionRow:
     def from_row(cls, r: DbRow) -> BridgeConnectionRow:
         cred = r["credential_blob"]
         token = r["access_token_blob"]
-        raw_notes = r["notes"]
         keys = set(r.keys()) if hasattr(r, "keys") else set()
+        raw_notes = r["notes"]
+        raw_icon = r["icon_name"] if "icon_name" in keys else None
         auto_raw = r["auto_reconnect"] if "auto_reconnect" in keys else 1
         return cls(
             pk=int(r["id"]),
@@ -42,6 +44,11 @@ class BridgeConnectionRow:
             peer_username=str(r["peer_username"]),
             display_name=str(r["display_name"] or ""),
             notes=(str(raw_notes) if raw_notes is not None and str(raw_notes).strip() else None),
+            icon_name=(
+                str(raw_icon).strip()
+                if isinstance(raw_icon, str) and str(raw_icon).strip()
+                else None
+            ),
             credential_blob=bytes(cred) if cred is not None else None,
             access_token_blob=bytes(token) if token is not None else None,
             token_expires_at=r["token_expires_at"],
@@ -67,6 +74,7 @@ class BridgeConnectionRepo:
         peer_username: str,
         display_name: str,
         notes: str | None = None,
+        icon_name: str | None = None,
         credential_blob: bytes | None = None,
         access_token_blob: bytes | None = None,
         token_expires_at: int | None = None,
@@ -78,9 +86,9 @@ class BridgeConnectionRepo:
             conn.execute(
                 "INSERT INTO bridge_connections("
                 "connection_id, owner_user_id, peer_base_url, peer_username, display_name, "
-                "notes, credential_blob, access_token_blob, token_expires_at, status, "
+                "notes, icon_name, credential_blob, access_token_blob, token_expires_at, status, "
                 "auto_reconnect, created_at, updated_at"
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     connection_id,
                     owner_user_id,
@@ -88,6 +96,7 @@ class BridgeConnectionRepo:
                     peer_username,
                     display_name,
                     notes,
+                    (icon_name or "").strip() or None,
                     credential_blob,
                     access_token_blob,
                     token_expires_at,
@@ -204,17 +213,68 @@ class BridgeConnectionRepo:
         notes: str | None,
     ) -> BridgeConnectionRow | None:
         """Overwrite display_name and notes for a connection."""
+        return self.update_settings(
+            connection_id,
+            display_name=display_name,
+            notes=notes,
+        )
+
+    def update_settings(
+        self,
+        connection_id: str,
+        *,
+        display_name: str,
+        notes: str | None,
+        icon_name: str | None = None,
+        peer_base_url: str | None = None,
+        peer_username: str | None = None,
+        credential_blob: bytes | None = None,
+        access_token_blob: bytes | None = None,
+        token_expires_at: int | None = None,
+        update_credentials: bool = False,
+    ) -> BridgeConnectionRow | None:
+        """Overwrite identity / endpoint fields; optionally refresh encrypted creds."""
         name = display_name.strip()
         if not name:
             raise ValueError("display_name required")
         note = (notes or "").strip() or None
+        icon = (icon_name or "").strip() or None
         ts = now_ts()
         with self._db.transaction() as conn:
-            conn.execute(
-                "UPDATE bridge_connections SET display_name = ?, notes = ?, updated_at = ? "
-                "WHERE connection_id = ?",
-                (name, note, ts, connection_id),
-            )
+            if peer_base_url is not None and peer_username is not None and update_credentials:
+                conn.execute(
+                    "UPDATE bridge_connections SET "
+                    "display_name = ?, notes = ?, icon_name = ?, "
+                    "peer_base_url = ?, peer_username = ?, "
+                    "credential_blob = ?, access_token_blob = ?, token_expires_at = ?, "
+                    "updated_at = ? WHERE connection_id = ?",
+                    (
+                        name,
+                        note,
+                        icon,
+                        peer_base_url,
+                        peer_username,
+                        credential_blob,
+                        access_token_blob,
+                        token_expires_at,
+                        ts,
+                        connection_id,
+                    ),
+                )
+            elif peer_base_url is not None and peer_username is not None:
+                conn.execute(
+                    "UPDATE bridge_connections SET "
+                    "display_name = ?, notes = ?, icon_name = ?, "
+                    "peer_base_url = ?, peer_username = ?, updated_at = ? "
+                    "WHERE connection_id = ?",
+                    (name, note, icon, peer_base_url, peer_username, ts, connection_id),
+                )
+            else:
+                conn.execute(
+                    "UPDATE bridge_connections SET display_name = ?, notes = ?, icon_name = ?, "
+                    "updated_at = ? WHERE connection_id = ?",
+                    (name, note, icon, ts, connection_id),
+                )
         return self.get(connection_id)
 
     def upsert_reverse(

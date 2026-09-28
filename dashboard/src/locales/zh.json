@@ -204,7 +204,7 @@
     "experts": "专家",
     "tasks": "自动化",
     "connectors": "连接器",
-    "bridge": "远程桥接",
+    "bridge": "云端协同",
     "acp": "ACP",
     "agents": "专家",
     "providers": "Providers",
@@ -1191,7 +1191,12 @@
       "banner": "远端专家 · 经「{{name}}」桥接",
       "flag": "远端",
       "manageOnPeer": "需在远端修改",
-      "manageToast": "当前是远端专家，技能 / 模型 / 知识库等请在对端 Octop 上管理"
+      "manageToast": "当前是远端专家，技能 / 模型 / 知识库等请在对端 Octop 上管理",
+      "editBanner": "正在编辑远端专家，改动会保存到对端 Octop。",
+      "editSkillPackages": "技能包属于本机用户资源，无法安装到远端专家，该页签已隐藏。",
+      "editTools": "ACP 运行器在对端执行。插件图标若是对端本地文件，这里可能无法预览。",
+      "editPlugins": "此处只能开关对端已安装的插件；安装、卸载和市场请在对端进行。",
+      "editChannels": "扫码登录和机器人创建会在对端机器上执行，而不是这台浏览器。"
     },
     "pushToast": {
       "title": "{{name}} 发来提醒",
@@ -3268,8 +3273,8 @@
   "advancedSettings": {
     "description": "管理运行配置和环境变量等高级选项。",
     "bridge": {
-      "title": "远程桥接",
-      "description": "将本机 Octop 连接到另一实例。可浏览远端专家并跨桥对话；对话记录保留在专家所在侧。",
+      "title": "云端协同",
+      "description": "将本机 Octop 连接到另一实例。可浏览远端专家并跨实例对话；对话记录保留在专家所在侧。",
       "add": "添加连接",
       "addConfirm": "保存并连接",
       "created": "已保存并连接远端",
@@ -3283,10 +3288,12 @@
       "deleteConfirmTitle": "删除此桥接连接？",
       "deleteConfirmDesc": "将断开「{{name}}」并清除已保存的远端凭证。此操作不可撤销。",
       "editTitle": "编辑连接",
-      "editHint": "可修改显示名称与备注；远端地址和账号密码不变。",
+      "editHint": "可修改显示信息与远端账号。更改地址、用户名或密码后会重新登录；若原先已连接会自动重连。密码留空表示保持原密码。",
       "editSaved": "连接已更新",
       "editFailed": "更新连接失败",
-      "emptyTitle": "暂无远程桥接",
+      "passwordKeepHint": "留空则保持原密码",
+      "passwordKeepPlaceholder": "••••••••",
+      "emptyTitle": "暂无云端协同",
       "emptyDesc": "填写远端 Octop 地址、用户名和密码后即可添加。",
       "drawerHint": "显示名用于聊天页分组切换（须唯一）。建议先「探测」确认账号可达；「保存并连接」仅在登录与桥接握手都成功后才会落库，失败不会占用显示名。",
       "sectionIdentity": "显示信息",
@@ -3302,6 +3309,22 @@
       "displayNamePlaceholder": "例如：公司云端",
       "displayNameRequired": "请输入显示名",
       "displayNameHint": "聊天页切换远程分组时显示此名称，须唯一",
+      "icon": "图标",
+      "iconHint": "显示在远端专家卡片上（图标 + 显示名）",
+      "iconLabels": {
+        "cloudy": "云端",
+        "cloud": "云",
+        "cloud-cog": "云服务",
+        "globe": "公网",
+        "home": "本机",
+        "laptop": "工作站",
+        "monitor": "桌面",
+        "server": "机房",
+        "radio-tower": "边缘节点",
+        "wifi": "近端网络",
+        "satellite": "远端接入",
+        "map-pin": "现场"
+      },
       "notes": "备注信息",
       "notesPlaceholder": "可选，仅自己可见的说明",
       "peerUrl": "远端地址",
@@ -5953,7 +5976,7 @@
       "subtitle": "环境变量、备份、HTTPS 与更新"
     },
     "bridge": {
-      "title": "远程桥接",
+      "title": "云端协同",
       "subtitle": "连接另一台 Octop，在本机与对端专家对话"
     },
     "security": {

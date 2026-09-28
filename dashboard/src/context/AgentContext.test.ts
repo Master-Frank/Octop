@@ -122,6 +122,7 @@ describe("projectChatAgentOption", () => {
       owner_username: "alice",
       bridge: true,
       bridge_connection_name: "lab",
+      bridge_connection_icon: null,
     });
   });
 
@@ -132,5 +133,6 @@ describe("projectChatAgentOption", () => {
     expect(projected.is_owner).toBe(false);
     expect(projected.bridge).toBe(false);
     expect(projected.bridge_connection_name).toBeNull();
+    expect(projected.bridge_connection_icon).toBeNull();
   });
 });

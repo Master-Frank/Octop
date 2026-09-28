@@ -22,13 +22,12 @@ import type { ColumnsType } from "antd/es/table";
 import { message } from "@/utils/antdMessage";
 import {
   Activity,
-  Cable,
   CheckCircle,
   Globe,
   LayoutGrid,
-  Link2,
   List,
   Lock,
+  Cloudy,
   Plus,
   Pencil,
   RefreshCw,
@@ -46,7 +45,7 @@ import { EmptyState } from "../../../components/EmptyState";
 import { useAgent } from "../../../context/AgentContext";
 import { useCardTableView } from "../../../hooks/useCardTableView";
 import { apiErrorMessage } from "../../../utils/apiError";
-import { ExpertIcon } from "../../Experts/components/iconForName";
+import { ExpertIcon, iconForName } from "../../Experts/components/iconForName";
 import {
   bridgeApi,
   type BridgeConnection,
@@ -57,12 +56,59 @@ import {
 import { TabPanelHeader } from "./TabPanelHeader";
 import styles from "./BridgeSettings.module.less";
 
-const BRIDGE_ACCENT = "#0f766e";
+const BRIDGE_ACCENT = "var(--fn-color-brand)";
+const DEFAULT_BRIDGE_ICON = "cloudy";
+const BRIDGE_ICON_OPTIONS = [
+  "cloudy",
+  "cloud",
+  "cloud-cog",
+  "globe",
+  "home",
+  "laptop",
+  "monitor",
+  "server",
+  "radio-tower",
+  "wifi",
+  "satellite",
+  "map-pin",
+] as const;
 
 const FIELD_ICON = {
   size: 16 as const,
   style: { color: "var(--fn-text-tertiary)" },
 };
+
+function BridgeIconPicker({
+  value,
+  onChange,
+}: {
+  value?: string;
+  onChange?: (value?: string) => void;
+}) {
+  const { t } = useTranslation();
+  const current = (value || DEFAULT_BRIDGE_ICON).trim() || DEFAULT_BRIDGE_ICON;
+  return (
+    <div className={styles.iconPicker}>
+      {BRIDGE_ICON_OPTIONS.map((name) => {
+        const selected = current === name;
+        return (
+          <button
+            key={name}
+            type="button"
+            title={t(`advancedSettings.bridge.iconLabels.${name}`)}
+            className={
+              styles.iconOption +
+              (selected ? ` ${styles.iconOptionActive}` : "")
+            }
+            onClick={() => onChange?.(name)}
+          >
+            {iconForName(name, 16)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function statusColor(status: string): string {
   if (status === "connected") return "success";
@@ -259,16 +305,15 @@ function BridgeConnectionCard({
       style={{ "--catalog-accent": BRIDGE_ACCENT } as CSSProperties}
     >
       <div className={styles.backendCardHeader}>
-        <div
-          className={styles.backendCardIcon}
-          style={{ color: BRIDGE_ACCENT, background: `${BRIDGE_ACCENT}18` }}
-        >
-          <Link2 size={18} strokeWidth={2} aria-hidden />
+        <div className={styles.backendCardIcon}>
+          {iconForName(row.icon_name || DEFAULT_BRIDGE_ICON, 18)}
         </div>
         <div className={styles.backendCardTitle}>
-          <div className={styles.backendCardName}>{row.display_name}</div>
-          <div className={styles.backendCardKind}>
-            <span>{row.peer_username}</span>
+          <div className={styles.backendCardName}>
+            <span className={styles.backendCardNameText}>
+              {row.display_name}
+            </span>
+            <span className={styles.backendCardUser}>{row.peer_username}</span>
           </div>
         </div>
         <div
@@ -343,7 +388,7 @@ function BridgeConnectionCard({
             <Button
               size="small"
               type="text"
-              icon={<Cable size={14} />}
+              icon={<Cloudy size={14} />}
               onClick={() => void actions.onConnect(row)}
             >
               {t("advancedSettings.bridge.connect")}
@@ -402,6 +447,9 @@ export default function BridgeSettingsPanel({
   const [form] = Form.useForm();
   const [editOpen, setEditOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [editProbing, setEditProbing] = useState(false);
+  const [editProbeResult, setEditProbeResult] =
+    useState<BridgeProbeResult | null>(null);
   const [editTarget, setEditTarget] = useState<BridgeConnection | null>(null);
   const [editForm] = Form.useForm();
 
@@ -414,9 +462,14 @@ export default function BridgeSettingsPanel({
   const openEditDrawer = useCallback(
     (row: BridgeConnection) => {
       setEditTarget(row);
+      setEditProbeResult(null);
       editForm.setFieldsValue({
         display_name: row.display_name,
         notes: row.notes ?? "",
+        icon_name: row.icon_name || DEFAULT_BRIDGE_ICON,
+        peer_base_url: row.peer_base_url,
+        peer_username: row.peer_username,
+        password: "",
       });
       setEditOpen(true);
     },
@@ -426,6 +479,7 @@ export default function BridgeSettingsPanel({
   const closeEditDrawer = () => {
     setEditOpen(false);
     setEditTarget(null);
+    setEditProbeResult(null);
     editForm.resetFields();
   };
 
@@ -467,9 +521,14 @@ export default function BridgeSettingsPanel({
     try {
       const values = await editForm.validateFields();
       setEditing(true);
+      const password = String(values.password || "").trim();
       await bridgeApi.patch(editTarget.connection_id, {
         display_name: values.display_name,
         notes: values.notes ?? "",
+        icon_name: values.icon_name || DEFAULT_BRIDGE_ICON,
+        peer_base_url: values.peer_base_url,
+        peer_username: values.peer_username,
+        ...(password ? { password } : {}),
       });
       message.success(t("advancedSettings.bridge.editSaved"));
       closeEditDrawer();
@@ -485,6 +544,39 @@ export default function BridgeSettingsPanel({
     }
   };
 
+  const onEditProbe = async () => {
+    try {
+      const values = await editForm.validateFields([
+        "peer_base_url",
+        "peer_username",
+        "password",
+      ]);
+      const password = String(values.password || "").trim();
+      if (!password) {
+        message.warning(t("advancedSettings.bridge.passwordRequired"));
+        return;
+      }
+      setEditProbing(true);
+      const result = await bridgeApi.probe({
+        peer_base_url: values.peer_base_url,
+        peer_username: values.peer_username,
+        password,
+      });
+      setEditProbeResult(result);
+      message.success(
+        t("advancedSettings.bridge.probeOk", { count: result.agent_count }),
+      );
+    } catch (err) {
+      if (err && typeof err === "object" && "errorFields" in err) return;
+      setEditProbeResult(null);
+      message.error(
+        apiErrorMessage(err, t("advancedSettings.bridge.probeFailed"), t),
+      );
+    } finally {
+      setEditProbing(false);
+    }
+  };
+
   const onCreate = async () => {
     try {
       const values = await form.validateFields();
@@ -495,6 +587,7 @@ export default function BridgeSettingsPanel({
         password: values.password,
         display_name: values.display_name,
         notes: values.notes || undefined,
+        icon_name: values.icon_name || DEFAULT_BRIDGE_ICON,
         connect: true,
       });
       message.success(t("advancedSettings.bridge.created"));
@@ -607,11 +700,8 @@ export default function BridgeSettingsPanel({
         ellipsis: true,
         render: (name: string, row) => (
           <div className={styles.tableNameCell}>
-            <span
-              className={styles.tableNameIcon}
-              style={{ color: BRIDGE_ACCENT, background: `${BRIDGE_ACCENT}18` }}
-            >
-              <Link2 size={14} aria-hidden />
+            <span className={styles.tableNameIcon}>
+              {iconForName(row.icon_name || DEFAULT_BRIDGE_ICON, 14)}
             </span>
             <div className={styles.tableNameText}>
               <strong>{name}</strong>
@@ -699,7 +789,7 @@ export default function BridgeSettingsPanel({
               <Button
                 size="small"
                 type="link"
-                icon={<Cable size={14} />}
+                icon={<Cloudy size={14} />}
                 onClick={() => void actions.onConnect(row)}
               >
                 {t("advancedSettings.bridge.connect")}
@@ -877,7 +967,7 @@ export default function BridgeSettingsPanel({
             <Button
               type="primary"
               loading={creating}
-              icon={<Cable size={14} />}
+              icon={<Cloudy size={14} />}
               onClick={() => void onCreate()}
             >
               {t("advancedSettings.bridge.addConfirm")}
@@ -893,6 +983,7 @@ export default function BridgeSettingsPanel({
           layout="vertical"
           requiredMark={false}
           className={styles.createForm}
+          initialValues={{ icon_name: DEFAULT_BRIDGE_ICON }}
         >
           <div className={styles.createSection}>
             <div className={styles.createSectionTitle}>
@@ -919,6 +1010,14 @@ export default function BridgeSettingsPanel({
                 maxLength={64}
                 autoFocus
               />
+            </Form.Item>
+            <Form.Item
+              name="icon_name"
+              label={t("advancedSettings.bridge.icon")}
+              extra={t("advancedSettings.bridge.iconHint")}
+              initialValue={DEFAULT_BRIDGE_ICON}
+            >
+              <BridgeIconPicker />
             </Form.Item>
             <Form.Item
               name="notes"
@@ -1014,8 +1113,16 @@ export default function BridgeSettingsPanel({
           <div className={styles.drawerFooter}>
             <Button onClick={closeEditDrawer}>{t("common.cancel")}</Button>
             <Button
+              loading={editProbing}
+              onClick={() => void onEditProbe()}
+              icon={<Activity size={14} />}
+            >
+              {t("advancedSettings.bridge.probe")}
+            </Button>
+            <Button
               type="primary"
               loading={editing}
+              icon={<Cloudy size={14} />}
               onClick={() => void onSaveEdit()}
             >
               {t("common.save")}
@@ -1023,39 +1130,129 @@ export default function BridgeSettingsPanel({
           </div>
         }
       >
-        <p className={styles.meta}>{t("advancedSettings.bridge.editHint")}</p>
-        <Form form={editForm} layout="vertical" requiredMark={false}>
-          <Form.Item
-            name="display_name"
-            label={t("advancedSettings.bridge.displayName")}
-            rules={[
-              {
-                required: true,
-                whitespace: true,
-                message: t("advancedSettings.bridge.displayNameRequired"),
-              },
-            ]}
-            extra={t("advancedSettings.bridge.displayNameHint")}
-          >
-            <Input
-              prefix={<TagIcon {...FIELD_ICON} />}
-              placeholder={t("advancedSettings.bridge.displayNamePlaceholder")}
-              maxLength={64}
-              autoFocus
-            />
-          </Form.Item>
-          <Form.Item
-            name="notes"
-            label={t("advancedSettings.bridge.notes")}
-            rules={[{ max: 500 }]}
-          >
-            <Input.TextArea
-              placeholder={t("advancedSettings.bridge.notesPlaceholder")}
-              autoSize={{ minRows: 2, maxRows: 4 }}
-              maxLength={500}
-            />
-          </Form.Item>
+        <p className={styles.drawerHint}>
+          {t("advancedSettings.bridge.editHint")}
+        </p>
+        <Form
+          form={editForm}
+          layout="vertical"
+          requiredMark={false}
+          className={styles.createForm}
+        >
+          <div className={styles.createSection}>
+            <div className={styles.createSectionTitle}>
+              {t("advancedSettings.bridge.sectionIdentity")}
+            </div>
+            <Form.Item
+              name="display_name"
+              label={t("advancedSettings.bridge.displayName")}
+              extra={t("advancedSettings.bridge.displayNameHint")}
+              rules={[
+                {
+                  required: true,
+                  whitespace: true,
+                  message: t("advancedSettings.bridge.displayNameRequired"),
+                },
+                { max: 64 },
+              ]}
+            >
+              <Input
+                prefix={<TagIcon {...FIELD_ICON} />}
+                placeholder={t(
+                  "advancedSettings.bridge.displayNamePlaceholder",
+                )}
+                maxLength={64}
+                autoFocus
+              />
+            </Form.Item>
+            <Form.Item
+              name="icon_name"
+              label={t("advancedSettings.bridge.icon")}
+              extra={t("advancedSettings.bridge.iconHint")}
+              initialValue={DEFAULT_BRIDGE_ICON}
+            >
+              <BridgeIconPicker />
+            </Form.Item>
+            <Form.Item
+              name="notes"
+              label={t("advancedSettings.bridge.notes")}
+              rules={[{ max: 500 }]}
+            >
+              <Input.TextArea
+                placeholder={t("advancedSettings.bridge.notesPlaceholder")}
+                autoSize={{ minRows: 2, maxRows: 4 }}
+                maxLength={500}
+              />
+            </Form.Item>
+          </div>
+
+          <div className={styles.createSection}>
+            <div className={styles.createSectionTitle}>
+              {t("advancedSettings.bridge.sectionRemote")}
+            </div>
+            <Form.Item
+              name="peer_base_url"
+              label={t("advancedSettings.bridge.peerUrl")}
+              rules={[
+                {
+                  required: true,
+                  whitespace: true,
+                  message: t("advancedSettings.bridge.peerUrlRequired"),
+                },
+              ]}
+            >
+              <Input
+                prefix={<Globe {...FIELD_ICON} />}
+                placeholder={t("advancedSettings.bridge.peerUrlPlaceholder")}
+                autoComplete="url"
+              />
+            </Form.Item>
+            <Form.Item
+              name="peer_username"
+              label={t("advancedSettings.bridge.username")}
+              rules={[
+                {
+                  required: true,
+                  whitespace: true,
+                  message: t("advancedSettings.bridge.usernameRequired"),
+                },
+              ]}
+            >
+              <Input
+                prefix={<User {...FIELD_ICON} />}
+                placeholder={t("advancedSettings.bridge.username")}
+                autoComplete="username"
+              />
+            </Form.Item>
+            <Form.Item
+              name="password"
+              label={t("advancedSettings.bridge.password")}
+              extra={t("advancedSettings.bridge.passwordKeepHint")}
+              rules={[{ max: 256 }]}
+            >
+              <Input.Password
+                prefix={<Lock {...FIELD_ICON} />}
+                placeholder={t(
+                  "advancedSettings.bridge.passwordKeepPlaceholder",
+                )}
+                autoComplete="new-password"
+              />
+            </Form.Item>
+          </div>
         </Form>
+
+        {editProbeResult ? (
+          <div className={styles.probePanel}>
+            <div className={styles.probePanelHead}>
+              <Activity size={14} />
+              {t("advancedSettings.bridge.probeResultTitle", {
+                name: editProbeResult.peer_display_name,
+                count: editProbeResult.agent_count,
+              })}
+            </div>
+            <ProbeAgentList agents={editProbeResult.agents} />
+          </div>
+        ) : null}
       </Drawer>
     </>
   );

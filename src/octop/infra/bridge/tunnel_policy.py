@@ -11,8 +11,9 @@ _AGENT_RESOURCE = re.compile(
     r"^/api/agents/"
     r"(?:bridge:[^/]+|[^/]+)"
     r"(?:/(?:threads|history|uploads|avatar|icon|chat|messages|files|workspace"
-    r"|attachments|media|turns|memory|skills|tools|mbti|persona|channels"
-    r"|cron|config|state|status|welcome|members|subagents)(?:/.*)?)?$"
+    r"|attachments|media|turns|memory|skills|tools|tool-settings|mbti|persona"
+    r"|channels|cron|config|state|status|welcome|members|subagents|reload|acp"
+    r")(?:/.*)?)?$"
 )
 
 # Composer read-only surfaces for remote chat (models + knowledge pickers).
@@ -29,6 +30,13 @@ _COMPOSER_READONLY = re.compile(
 # Chat dock browser viewer (peer harness). Install / record-replay stay denied.
 _BROWSER_VIEWER_GET = re.compile(r"^/api/browser/(?:env-status|harness-sessions)$")
 _BROWSER_HANDOFF = re.compile(r"^/api/browser/sessions/[^/]+/handoff$")
+
+# Experts surfaces that are not under /api/agents/{id} but still agent-scoped
+# on the peer (header or /plugins/agents/{id} path).
+_PLUGIN_AGENT = re.compile(r"^/api/plugins/agents/(?:bridge:[^/]+|[^/]+)(?:/tools)?$")
+_MBTI = re.compile(r"^/api/mbti(?:/.*)?$")
+_SUBAGENT_CATALOG = re.compile(r"^/api/subagent-catalog(?:/.*)?$")
+_ACP_GLOBAL = re.compile(r"^/api/acp(?:/[^/]+)?$")
 
 
 def is_tunnel_path_allowed(method: str, path: str) -> bool:
@@ -55,5 +63,17 @@ def is_tunnel_path_allowed(method: str, path: str) -> bool:
 
     if _AGENT_RESOURCE.fullmatch(raw):
         return verb in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}
+
+    if _PLUGIN_AGENT.fullmatch(raw):
+        return verb in {"GET", "PATCH"}
+
+    if _MBTI.fullmatch(raw):
+        return verb in {"GET", "POST"}
+
+    if _SUBAGENT_CATALOG.fullmatch(raw):
+        return verb == "GET"
+
+    if _ACP_GLOBAL.fullmatch(raw):
+        return verb in {"GET", "PUT", "DELETE"}
 
     return False

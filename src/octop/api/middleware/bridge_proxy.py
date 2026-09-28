@@ -5,12 +5,18 @@ from __future__ import annotations
 import logging
 import re
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
 from typing import Any
+from urllib.parse import unquote
 
 from fastapi import Request
 from fastapi.responses import JSONResponse, Response
 
-from octop.infra.bridge.ids import BRIDGE_AGENT_PREFIX, parse_bridge_agent_id
+from octop.infra.bridge.ids import (
+    BRIDGE_AGENT_PREFIX,
+    BridgeAgentRef,
+    parse_bridge_agent_id,
+)
 from octop.infra.errors import ErrorCode, OctopError
 
 logger = logging.getLogger(__name__)
@@ -21,6 +27,74 @@ _INSTALL_ATTR = "_octop_bridge_proxy_installed"
 _BRIDGE_AGENT_PATH = re.compile(
     r"^/api/agents/(bridge(?::|%3[Aa])[^/]+)(/.*)?$",
 )
+_BRIDGE_PLUGIN_AGENT_PATH = re.compile(
+    r"^/api/plugins/agents/(bridge(?::|%3[Aa])[^/]+)(/.*)?$",
+)
+
+
+@dataclass(frozen=True)
+class TunnelTarget:
+    """Resolved hub → peer hop for a Bridge shadow request."""
+
+    ref: BridgeAgentRef
+    agent_token: str
+    remote_path: str
+    """Path suffix after the agent id for /api/agents/… shadows (local short-circuit)."""
+    agent_rest: str = ""
+
+
+def _is_header_tunneled_path(path: str) -> bool:
+    raw = (path or "").split("?", 1)[0].strip() or "/"
+    if len(raw) > 1:
+        raw = raw.rstrip("/")
+    if raw == "/api/mbti" or raw.startswith("/api/mbti/"):
+        return True
+    if raw == "/api/subagent-catalog" or raw.startswith("/api/subagent-catalog/"):
+        return True
+    return raw == "/api/acp" or raw.startswith("/api/acp/")
+
+
+def resolve_tunnel_target(
+    path: str,
+    agent_header: str | None = None,
+) -> TunnelTarget | None:
+    """Return a tunnel target when ``path`` / ``X-Octop-Agent-Id`` names a Bridge agent."""
+    raw = (path or "").split("?", 1)[0] or "/"
+
+    match = _BRIDGE_AGENT_PATH.match(raw)
+    if match is not None:
+        token = unquote(match.group(1))
+        ref = parse_bridge_agent_id(token)
+        if ref is not None:
+            rest = match.group(2) or ""
+            return TunnelTarget(
+                ref=ref,
+                agent_token=token,
+                remote_path=f"/api/agents/{ref.remote_agent_id}{rest}",
+                agent_rest=rest,
+            )
+
+    match = _BRIDGE_PLUGIN_AGENT_PATH.match(raw)
+    if match is not None:
+        token = unquote(match.group(1))
+        ref = parse_bridge_agent_id(token)
+        if ref is not None:
+            rest = match.group(2) or ""
+            return TunnelTarget(
+                ref=ref,
+                agent_token=token,
+                remote_path=f"/api/plugins/agents/{ref.remote_agent_id}{rest}",
+            )
+
+    header = unquote((agent_header or "").strip())
+    ref = parse_bridge_agent_id(header)
+    if ref is None or not _is_header_tunneled_path(raw):
+        return None
+    return TunnelTarget(
+        ref=ref,
+        agent_token=ref.agent_id,
+        remote_path=raw,
+    )
 
 
 def _local_bridge_shadow_response(
@@ -58,6 +132,30 @@ def _local_bridge_shadow_response(
     return None
 
 
+def _forward_headers(request: Request, remote_agent_id: str) -> dict[str, str]:
+    headers = {
+        k: v
+        for k, v in request.headers.items()
+        if k.lower()
+        not in {
+            "host",
+            "content-length",
+            "authorization",
+            "connection",
+            "transfer-encoding",
+        }
+    }
+    rewritten = False
+    for key in list(headers):
+        if key.lower() == "x-octop-agent-id":
+            headers[key] = remote_agent_id
+            rewritten = True
+            break
+    if not rewritten:
+        headers["X-Octop-Agent-Id"] = remote_agent_id
+    return headers
+
+
 def install(app: Any, server: Any) -> None:
     if getattr(app, _INSTALL_ATTR, False):
         return
@@ -69,21 +167,14 @@ def install(app: Any, server: Any) -> None:
         call_next: Callable[[Request], Awaitable[Any]],
     ) -> Any:
         path = request.url.path
-        match = _BRIDGE_AGENT_PATH.match(path)
-        if match is None:
+        target = resolve_tunnel_target(
+            path,
+            request.headers.get("x-octop-agent-id"),
+        )
+        if target is None:
             return await call_next(request)
         # WebSocket upgrades are handled by the chat/bridge routers.
         if (request.headers.get("connection") or "").lower() == "upgrade":
-            return await call_next(request)
-
-        agent_token = match.group(1)
-        rest = match.group(2) or ""
-        # Starlette usually decodes; still normalize percent-encoded ``:``.
-        from urllib.parse import unquote
-
-        agent_token = unquote(agent_token)
-        ref = parse_bridge_agent_id(agent_token)
-        if ref is None:
             return await call_next(request)
 
         user = getattr(request.state, "octop_user", None)
@@ -93,9 +184,13 @@ def install(app: Any, server: Any) -> None:
             return await call_next(request)
 
         try:
-            local = _local_bridge_shadow_response(
-                method=request.method,
-                rest=rest,
+            local = (
+                _local_bridge_shadow_response(
+                    method=request.method,
+                    rest=target.agent_rest,
+                )
+                if target.agent_rest
+                else None
             )
         except OctopError as exc:
             from octop.infra.utils.locale import resolve_request_locale
@@ -108,26 +203,14 @@ def install(app: Any, server: Any) -> None:
         if local is not None:
             return local
 
-        remote_path = f"/api/agents/{ref.remote_agent_id}{rest}"
         body = await request.body()
-        headers = {
-            k: v
-            for k, v in request.headers.items()
-            if k.lower()
-            not in {
-                "host",
-                "content-length",
-                "authorization",
-                "connection",
-                "transfer-encoding",
-            }
-        }
+        headers = _forward_headers(request, target.ref.remote_agent_id)
         try:
             peer_resp = await mgr.tunnel_http(
-                connection_id=ref.connection_id,
+                connection_id=target.ref.connection_id,
                 owner_user_id=int(user.id),
                 method=request.method,
-                path=remote_path,
+                path=target.remote_path,
                 query=request.url.query,
                 headers=headers,
                 body=body or None,
@@ -156,10 +239,10 @@ def install(app: Any, server: Any) -> None:
             # Remap remote agent id strings in JSON bodies back to bridge ids
             try:
                 text = content.decode("utf-8")
-                if ref.remote_agent_id in text:
+                if target.ref.remote_agent_id in text:
                     text = text.replace(
-                        ref.remote_agent_id,
-                        agent_token,
+                        target.ref.remote_agent_id,
+                        target.agent_token,
                     )
                     content = text.encode("utf-8")
             except UnicodeDecodeError:

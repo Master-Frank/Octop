@@ -47,6 +47,15 @@ import {
   Coffee,
   ShoppingBag,
   Users,
+  Cloudy,
+  Cloud,
+  CloudCog,
+  Laptop,
+  Monitor,
+  Wifi,
+  RadioTower,
+  Satellite,
+  MapPin,
 } from "lucide-react";
 import { useAuthImageSrc } from "../../../hooks/useAuthImageSrc";
 import { needsAuthBlobFetch } from "../../../utils/toolMediaBlocks";
@@ -87,6 +96,15 @@ const iconMap: Record<string, (size: number) => ReactNode> = {
   bell: (size) => <Bell size={size} />,
   coffee: (size) => <Coffee size={size} />,
   "shopping-bag": (size) => <ShoppingBag size={size} />,
+  cloudy: (size) => <Cloudy size={size} strokeWidth={1.75} />,
+  cloud: (size) => <Cloud size={size} strokeWidth={1.75} />,
+  "cloud-cog": (size) => <CloudCog size={size} strokeWidth={1.75} />,
+  laptop: (size) => <Laptop size={size} strokeWidth={1.75} />,
+  monitor: (size) => <Monitor size={size} strokeWidth={1.75} />,
+  wifi: (size) => <Wifi size={size} strokeWidth={1.75} />,
+  "radio-tower": (size) => <RadioTower size={size} strokeWidth={1.75} />,
+  satellite: (size) => <Satellite size={size} strokeWidth={1.75} />,
+  "map-pin": (size) => <MapPin size={size} strokeWidth={1.75} />,
 };
 
 export const EXPERT_ICON_NAMES = Object.keys(iconMap);

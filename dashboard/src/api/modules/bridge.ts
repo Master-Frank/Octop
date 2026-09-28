@@ -8,6 +8,7 @@ export interface BridgeConnection {
   peer_username: string;
   display_name: string;
   notes: string | null;
+  icon_name?: string | null;
   status: string;
   last_error: string | null;
   last_seen_at: number | null;
@@ -72,6 +73,7 @@ export const bridgeApi = {
     password: string;
     display_name: string;
     notes?: string;
+    icon_name?: string;
     connect?: boolean;
   }) =>
     request<BridgeConnection>("/bridge/connections", {
@@ -99,6 +101,11 @@ export const bridgeApi = {
       auto_reconnect?: boolean;
       display_name?: string;
       notes?: string;
+      icon_name?: string;
+      peer_base_url?: string;
+      peer_username?: string;
+      /** Omit or empty to keep the stored password. */
+      password?: string;
     },
   ) =>
     request<BridgeConnection>(`/bridge/connections/${connectionId}`, {
