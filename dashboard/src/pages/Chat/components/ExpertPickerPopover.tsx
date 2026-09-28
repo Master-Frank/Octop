@@ -1,10 +1,11 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
-import { Eye, EyeOff, GraduationCap } from "lucide-react";
+import { Eye, EyeOff, GraduationCap, Info } from "lucide-react";
 import SearchablePickerPanel, {
   pickerStyles,
 } from "../../../components/ChatPicker/SearchablePickerPanel";
+import { message } from "@/utils/antdMessage";
 import ExpertAgentAvatar, { type ChatAgentOption } from "./ExpertAgentAvatar";
 import { useHiddenSharedExperts } from "../hooks/useHiddenSharedExperts";
 import styles from "../index.module.less";
@@ -16,6 +17,7 @@ interface ExpertPickerPopoverProps {
   selectedAgentIds: string[];
   onSelect: (agent: ChatAgentOption) => void;
   onNavigateAway?: () => void;
+  remoteManaged?: boolean;
 }
 
 export default function ExpertPickerPopover({
@@ -23,6 +25,7 @@ export default function ExpertPickerPopover({
   selectedAgentIds,
   onSelect,
   onNavigateAway,
+  remoteManaged = false,
 }: ExpertPickerPopoverProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -65,9 +68,24 @@ export default function ExpertPickerPopover({
           : t("chat.expertPickerEmpty")
       }
       width="compact"
-      footerIcon={<GraduationCap size={15} aria-hidden />}
-      footerLabel={t("chat.expertPickerManage")}
+      footerIcon={
+        remoteManaged ? (
+          <Info size={15} aria-hidden />
+        ) : (
+          <GraduationCap size={15} aria-hidden />
+        )
+      }
+      footerLabel={
+        remoteManaged
+          ? t("chat.remoteExpert.manageOnPeer")
+          : t("chat.expertPickerManage")
+      }
+      footerMuted={remoteManaged}
       onFooterClick={() => {
+        if (remoteManaged) {
+          message.info(t("chat.remoteExpert.manageToast"));
+          return;
+        }
         onNavigateAway?.();
         navigate("/experts");
       }}

@@ -1189,7 +1189,9 @@
     "remoteExpert": {
       "banner": "远端专家 · 经「{{name}}」桥接",
       "flag": "远端",
-      "namedFlag": "远端·{{name}}"
+      "namedFlag": "远端·{{name}}",
+      "manageOnPeer": "需在远端修改",
+      "manageToast": "当前是远端专家，技能 / 模型 / 知识库等请在对端 Octop 上管理"
     },
     "pushToast": {
       "title": "{{name}} 发来提醒",

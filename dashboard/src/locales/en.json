@@ -1189,7 +1189,9 @@
     "remoteExpert": {
       "banner": "Remote expert · via “{{name}}” bridge",
       "flag": "Remote",
-      "namedFlag": "Remote·{{name}}"
+      "namedFlag": "Remote·{{name}}",
+      "manageOnPeer": "Edit on the remote instance",
+      "manageToast": "This is a remote expert. Manage skills, models, knowledge bases, and related settings on the peer Octop."
     },
     "pushToast": {
       "title": "{{name}} sent a reminder",

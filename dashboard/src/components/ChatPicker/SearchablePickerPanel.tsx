@@ -15,6 +15,8 @@ interface SearchablePickerPanelProps<T> {
   footerIcon: ReactNode;
   footerLabel: string;
   onFooterClick: () => void;
+  /** Soften the footer (e.g. remote-bridge “edit on peer” hint). */
+  footerMuted?: boolean;
   /** Optional row(s) rendered between the list and the primary footer. */
   beforeFooter?: ReactNode;
 }
@@ -29,6 +31,7 @@ export default function SearchablePickerPanel<T>({
   footerIcon,
   footerLabel,
   onFooterClick,
+  footerMuted = false,
   beforeFooter,
 }: SearchablePickerPanelProps<T>) {
   const { query, setQuery, filtered } = useFilteredList(items, filterFn);
@@ -62,7 +65,11 @@ export default function SearchablePickerPanel<T>({
 
       {beforeFooter}
 
-      <button type="button" className={styles.footer} onClick={onFooterClick}>
+      <button
+        type="button"
+        className={`${styles.footer} ${footerMuted ? styles.footerMuted : ""}`}
+        onClick={onFooterClick}
+      >
         {footerIcon}
         <span>{footerLabel}</span>
       </button>
