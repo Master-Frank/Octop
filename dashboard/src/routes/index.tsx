@@ -151,6 +151,10 @@ export const routeConfigs: RouteConfig[] = [
   { path: "/experts", element: <ExpertsPage /> },
   { path: "/tasks", element: <CronJobsPage /> },
   { path: "/connectors", element: <ConnectorsPage /> },
+  {
+    path: "/bridge",
+    element: <Navigate to="/admin/advanced?tab=bridge" replace />,
+  },
   { path: "/skill-packages", element: <SkillPackagesPage /> },
   { path: "/knowledge-bases", element: <KnowledgeBasesPage /> },
   {

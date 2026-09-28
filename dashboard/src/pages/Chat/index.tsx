@@ -196,7 +196,7 @@ function ChatPageInner() {
     () => agents.find((a) => a.agent_id === resolvedAgentId) ?? null,
     [agents, resolvedAgentId],
   );
-  const agentChatReady = isAgentChatReady(activeAgent?.state);
+  const agentChatReady = isAgentChatReady(activeAgent?.state, activeAgent);
   const trajectoryEnabled =
     activeAgent !== null && activeAgent.config?.enable_trajectory !== false;
   const sharedExpertViewer = isSharedExpertViewer(activeAgent ?? {});

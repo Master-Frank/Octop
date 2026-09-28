@@ -64,6 +64,11 @@ export interface OctopAgent {
   /** Member agent ids when ``kind === "team"``. */
   member_ids?: string[];
   welcome_message?: string | null;
+  /** True when this row is a remote shadow expert via Bridge. */
+  bridge?: boolean;
+  bridge_connection_id?: string | null;
+  /** Display name of the bridge link (chat group label). */
+  bridge_connection_name?: string | null;
 }
 
 interface AgentContextValue {
@@ -184,12 +189,80 @@ interface ListAgentsResponse {
 async function fetchAgents(): Promise<OctopAgent[]> {
   const candidate = legacyAgentApi as Partial<ListAgentsResponse> &
     Record<string, unknown>;
+  let local: OctopAgent[] = [];
   if (typeof candidate.list === "function") {
-    return candidate.list();
+    local = await candidate.list();
+  } else {
+    // Direct fallback so 14.3 doesn't depend on 14.6's API module rewrite.
+    const { request } = await import("../api/request");
+    local = await request<OctopAgent[]>("/agents");
   }
-  // Direct fallback so 14.3 doesn't depend on 14.6's API module rewrite.
-  const { request } = await import("../api/request");
-  return request<OctopAgent[]>("/agents");
+  const remote = await fetchBridgeShadowAgents();
+  if (remote.length === 0) return local;
+  const localIds = new Set(local.map((a) => a.agent_id));
+  return [...local, ...remote.filter((a) => !localIds.has(a.agent_id))];
+}
+
+async function fetchBridgeShadowAgents(): Promise<OctopAgent[]> {
+  try {
+    const { bridgeApi } = await import("../api/modules/bridge");
+    const connections = await bridgeApi.list();
+    const connected = connections.filter((c) => c.status === "connected");
+    if (connected.length === 0) return [];
+    const batches = await Promise.all(
+      connected.map(async (conn) => {
+        try {
+          const agents = await bridgeApi.listAgents(conn.connection_id);
+          return agents.map((agent) => mapBridgeAgent(agent, conn));
+        } catch {
+          return [] as OctopAgent[];
+        }
+      }),
+    );
+    return batches.flat();
+  } catch {
+    // Non-admin users or bridge-unavailable installs — ignore.
+    return [];
+  }
+}
+
+function mapBridgeAgent(
+  agent: {
+    id?: string;
+    agent_id?: string;
+    name?: string;
+    description?: string | null;
+    icon_url?: string | null;
+    icon_name?: string | null;
+    color?: string | null;
+    kind?: string | null;
+    state?: string | null;
+  },
+  conn: { connection_id: string; display_name: string },
+): OctopAgent {
+  const agentId = String(agent.agent_id || agent.id || "");
+  return {
+    id: 0,
+    agent_id: agentId,
+    name: String(agent.name || agentId),
+    description:
+      typeof agent.description === "string" ? agent.description : null,
+    persona_mbti: null,
+    default_model: null,
+    system_prompt: null,
+    template_name: null,
+    state: "running",
+    last_error: null,
+    icon: null,
+    icon_name: typeof agent.icon_name === "string" ? agent.icon_name : null,
+    icon_url: typeof agent.icon_url === "string" ? agent.icon_url : null,
+    color: typeof agent.color === "string" ? agent.color : null,
+    config: {},
+    kind: agent.kind === "team" ? "team" : "expert",
+    bridge: true,
+    bridge_connection_id: conn.connection_id,
+    bridge_connection_name: conn.display_name,
+  };
 }
 
 export function AgentProvider({ children }: { children: ReactNode }) {
@@ -239,6 +312,9 @@ export function AgentProvider({ children }: { children: ReactNode }) {
                 a.icon_name === b.icon_name &&
                 a.color === b.color &&
                 a.kind === b.kind &&
+                a.bridge === b.bridge &&
+                a.bridge_connection_id === b.bridge_connection_id &&
+                a.bridge_connection_name === b.bridge_connection_name &&
                 sameMemberIds(a.member_ids, b.member_ids)
               );
             })

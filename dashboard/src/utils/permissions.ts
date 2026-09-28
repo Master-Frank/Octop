@@ -64,6 +64,7 @@ export const ADVANCED_TAB_PERMISSIONS = {
   https: "tls",
   updates: "update",
   captcha: "captcha",
+  bridge: "admin_console",
 } as const;
 
 export const SECURITY_TAB_PERMISSIONS = {

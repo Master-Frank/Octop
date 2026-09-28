@@ -44,6 +44,7 @@ describe("pathPermissionKeys", () => {
     expect(NAV_PERMISSIONS["admin-users"]).toEqual(PERM.usersPage);
     expect(NAV_PERMISSIONS["admin-advanced"]).toEqual(PERM.advancedPage);
     expect(ADVANCED_TAB_PERMISSIONS.captcha).toBe("captcha");
+    expect(ADVANCED_TAB_PERMISSIONS.bridge).toBe("admin_console");
     expect([...PERM.advancedPage]).toContain("captcha");
   });
 
