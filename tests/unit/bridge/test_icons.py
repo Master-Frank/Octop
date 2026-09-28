@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from urllib.parse import quote
-
 from octop.infra.bridge.icons import bridge_avatar_api_path, rewrite_remote_icon_url
 
 
@@ -37,7 +35,7 @@ def test_rewrites_peer_avatar_api_to_bridge_proxy() -> None:
         remote_agent_id="01REMOTE",
         bridge_agent_id=bridge_id,
     )
-    assert out == f"/api/agents/{quote(bridge_id, safe='')}/avatar"
+    assert out == f"/api/agents/{bridge_id}/avatar"
     assert bridge_avatar_api_path(bridge_id) == out
 
 
@@ -48,7 +46,7 @@ def test_rewrites_absolute_peer_avatar() -> None:
         remote_agent_id="01REMOTE",
         bridge_agent_id=bridge_id,
     )
-    assert out == f"/api/agents/{quote(bridge_id, safe='')}/avatar"
+    assert out == f"/api/agents/{bridge_id}/avatar"
 
 
 def test_empty_returns_none() -> None:

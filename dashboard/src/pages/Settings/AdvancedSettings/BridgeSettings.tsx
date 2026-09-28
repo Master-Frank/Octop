@@ -6,7 +6,6 @@ import {
   type CSSProperties,
 } from "react";
 import {
-  Avatar,
   Button,
   Drawer,
   Form,
@@ -46,6 +45,7 @@ import { EmptyState } from "../../../components/EmptyState";
 import { useAgent } from "../../../context/AgentContext";
 import { useCardTableView } from "../../../hooks/useCardTableView";
 import { apiErrorMessage } from "../../../utils/apiError";
+import { ExpertIcon } from "../../Experts/components/iconForName";
 import {
   bridgeApi,
   type BridgeConnection,
@@ -72,26 +72,25 @@ function statusColor(status: string): string {
 function AgentAvatar({
   name,
   iconUrl,
+  iconName,
   color,
 }: {
   name: string;
   iconUrl?: string | null;
+  iconName?: string | null;
   color?: string | null;
 }) {
-  if (iconUrl) {
-    return <Avatar size={40} src={iconUrl} alt={name} />;
-  }
-  const initial = (name || "?").trim().charAt(0).toUpperCase() || "?";
   return (
-    <Avatar
-      size={40}
+    <span
+      className={styles.probeAvatar}
       style={{
-        background: color || "var(--fn-color-brand, #e85d75)",
-        color: "#fff",
+        color: color || "var(--fn-color-brand, #e85d75)",
+        background: `${color || "#e85d75"}1a`,
       }}
+      aria-label={name}
     >
-      {initial}
-    </Avatar>
+      <ExpertIcon iconUrl={iconUrl} iconName={iconName} size={22} />
+    </span>
   );
 }
 
@@ -112,6 +111,7 @@ function AgentListItem({
   name,
   description,
   iconUrl,
+  iconName,
   color,
   kind,
   onClick,
@@ -120,13 +120,19 @@ function AgentListItem({
   name: string;
   description?: string | null;
   iconUrl?: string | null;
+  iconName?: string | null;
   color?: string | null;
   kind?: string | null;
   onClick?: () => void;
 }) {
   const body = (
     <>
-      <AgentAvatar name={name} iconUrl={iconUrl} color={color} />
+      <AgentAvatar
+        name={name}
+        iconUrl={iconUrl}
+        iconName={iconName}
+        color={color}
+      />
       <div className={styles.probeBody}>
         <div className={styles.probeNameRow}>
           <div className={styles.probeName}>{name}</div>
@@ -173,6 +179,7 @@ function ProbeAgentList({ agents }: { agents: BridgeProbeAgent[] }) {
           name={agent.name}
           description={agent.description}
           iconUrl={agent.icon_url}
+          iconName={agent.icon_name}
           color={agent.color}
           kind={agent.kind}
         />
@@ -203,6 +210,9 @@ function RemoteAgentsBlock({
               typeof agent.description === "string" ? agent.description : null
             }
             iconUrl={typeof agent.icon_url === "string" ? agent.icon_url : null}
+            iconName={
+              typeof agent.icon_name === "string" ? agent.icon_name : null
+            }
             color={typeof agent.color === "string" ? agent.color : null}
             kind={typeof agent.kind === "string" ? agent.kind : null}
             onClick={() => onOpen(agent.id)}

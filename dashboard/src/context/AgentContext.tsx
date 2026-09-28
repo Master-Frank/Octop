@@ -314,6 +314,7 @@ export function AgentProvider({ children }: { children: ReactNode }) {
                 a.name === b.name &&
                 a.icon === b.icon &&
                 a.icon_name === b.icon_name &&
+                a.icon_url === b.icon_url &&
                 a.color === b.color &&
                 a.kind === b.kind &&
                 a.bridge === b.bridge &&

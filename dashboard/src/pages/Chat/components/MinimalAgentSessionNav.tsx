@@ -535,7 +535,7 @@ export default function MinimalAgentSessionNav({
                   <ExpertIcon
                     iconUrl={agent.icon_url}
                     iconName={agent.icon_name}
-                    size={14}
+                    size={agent.icon_url?.trim() ? 22 : 14}
                   />
                 </span>
                 <button

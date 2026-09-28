@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from urllib.parse import quote, urlsplit
+from urllib.parse import urlsplit
 
 from octop.infra.agents.experts.avatar import agent_avatar_api_path
 
 
 def bridge_avatar_api_path(bridge_agent_id: str) -> str:
-    """Percent-encode Bridge agent ids (contain ``:``) for safe URL path segments."""
-    if ":" not in bridge_agent_id:
-        return agent_avatar_api_path(bridge_agent_id)
-    return f"/api/agents/{quote(bridge_agent_id, safe='')}/avatar"
+    """Local avatar URL for a Bridge shadow agent.
+
+    Keep the id unencoded here — the dashboard encodes the path segment the
+    same way it does for chat WS / threads (``encodeURIComponent``).
+    """
+    return agent_avatar_api_path(bridge_agent_id)
 
 
 def rewrite_remote_icon_url(

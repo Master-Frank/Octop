@@ -295,7 +295,7 @@ function ActiveAgentCard({
           <ExpertIcon
             iconUrl={agent.icon_url}
             iconName={agent.icon_name}
-            size={16}
+            size={agent.icon_url?.trim() ? 28 : 16}
           />
         </div>
         <div className={styles.agentCardInfo}>
@@ -435,7 +435,7 @@ function InactiveAgentRow({
           <ExpertIcon
             iconUrl={agent.icon_url}
             iconName={agent.icon_name}
-            size={14}
+            size={agent.icon_url?.trim() ? 26 : 14}
           />
         </div>
         <div className={styles.agentRowInfo}>
