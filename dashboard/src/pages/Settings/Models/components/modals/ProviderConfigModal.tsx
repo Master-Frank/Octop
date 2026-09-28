@@ -34,6 +34,7 @@ import {
   watchOnnxDownload,
 } from "../../../../../api/modules/onnxDownloadWatcher";
 import { isOllamaProviderRow, isOnnxProviderRow } from "../../presetUtils";
+import { expandOllamaDownloadedIds } from "../../ollamaNames";
 import { ModelListEditor } from "./ModelListEditor";
 import styles from "../../index.module.less";
 
@@ -113,6 +114,9 @@ export function ProviderConfigModal({
   const [ollamaTasks, setOllamaTasks] = useState<OllamaDownloadTaskResponse[]>(
     [],
   );
+  const [ollamaModelsDir, setOllamaModelsDir] = useState("");
+  const [ollamaServiceEnabled, setOllamaServiceEnabled] = useState(false);
+  const [savingModelsDir, setSavingModelsDir] = useState(false);
   const ollamaPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ollamaNotifiedRef = useRef<Set<string>>(new Set());
 
@@ -185,7 +189,8 @@ export function ProviderConfigModal({
       const data = await request<OllamaModelResponse[]>("/ollama-models");
       const list = Array.isArray(data) ? data : [];
       setOllamaModels(list);
-      setDownloadedIds(list.map((m) => m.name));
+      setDownloadedIds(expandOllamaDownloadedIds(list.map((m) => m.name)));
+      setOllamaUnavailable(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("503") || msg.includes("connect")) {
@@ -263,6 +268,14 @@ export function ProviderConfigModal({
     downloadForm.resetFields();
     ollamaNotifiedRef.current.clear();
 
+    void ollamaModelApi
+      .getService()
+      .then((st) => {
+        setOllamaServiceEnabled(st.enabled);
+        setOllamaModelsDir(st.models_dir || "");
+      })
+      .catch(() => {});
+
     void request<OllamaDownloadTaskResponse[]>("/ollama-models/download-status")
       .then((tasks) => {
         const active = (Array.isArray(tasks) ? tasks : []).filter(
@@ -282,6 +295,28 @@ export function ProviderConfigModal({
     startOllamaPolling,
     stopOllamaPolling,
   ]);
+
+  const handleSaveOllamaModelsDir = async () => {
+    setSavingModelsDir(true);
+    try {
+      const st = await ollamaModelApi.setService(
+        ollamaServiceEnabled,
+        ollamaModelsDir.trim(),
+      );
+      setOllamaServiceEnabled(st.enabled);
+      setOllamaModelsDir(st.models_dir || "");
+      message.success(t("models.ollamaModelsDirSaved"));
+      await fetchOllamaModels();
+    } catch (err) {
+      message.error(
+        err instanceof Error
+          ? err.message
+          : t("models.ollamaModelsDirSaveFailed"),
+      );
+    } finally {
+      setSavingModelsDir(false);
+    }
+  };
 
   const handleOllamaDownload = async () => {
     try {
@@ -363,7 +398,7 @@ export function ProviderConfigModal({
         const data = await request<OllamaModelResponse[]>("/ollama-models");
         const list = Array.isArray(data) ? data : [];
         setOllamaModels(list);
-        setDownloadedIds(list.map((m) => m.name));
+        setDownloadedIds(expandOllamaDownloadedIds(list.map((m) => m.name)));
         setOllamaUnavailable(false);
       } else if (isOnnx) {
         const st = await onnxModelApi.getStatus();
@@ -1108,6 +1143,34 @@ export function ProviderConfigModal({
           <Divider orientation="left" style={{ fontSize: 13, marginTop: 24 }}>
             {t("models.ollamaLocalModels")}
           </Divider>
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, marginBottom: 6 }}>
+              {t("models.ollamaModelsDir")}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <Input
+                value={ollamaModelsDir}
+                onChange={(e) => setOllamaModelsDir(e.target.value)}
+                placeholder={t("models.ollamaModelsDirPlaceholder")}
+              />
+              <Button
+                loading={savingModelsDir}
+                onClick={() => void handleSaveOllamaModelsDir()}
+              >
+                {t("models.ollamaModelsDirApply")}
+              </Button>
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--fn-text-tertiary)",
+                marginTop: 4,
+              }}
+            >
+              {t("models.ollamaModelsDirHint")}
+            </div>
+          </div>
 
           {ollamaUnavailable ? (
             <div

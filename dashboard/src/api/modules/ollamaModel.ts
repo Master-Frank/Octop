@@ -3,6 +3,7 @@ import type {
   OllamaModelResponse,
   OllamaDownloadRequest,
   OllamaDownloadTaskResponse,
+  OllamaServiceStatus,
 } from "../types";
 
 export const ollamaModelApi = {
@@ -29,12 +30,15 @@ export const ollamaModelApi = {
       { method: "DELETE" },
     ),
 
-  getService: () =>
-    request<{ enabled: boolean; running: boolean }>("/ollama-models/service"),
+  getService: () => request<OllamaServiceStatus>("/ollama-models/service"),
 
-  setService: (enabled: boolean) =>
-    request<{ enabled: boolean; running: boolean }>("/ollama-models/service", {
+  setService: (enabled: boolean, modelsDir?: string) =>
+    request<OllamaServiceStatus>("/ollama-models/service", {
       method: "PUT",
-      body: JSON.stringify({ enabled }),
+      body: JSON.stringify(
+        modelsDir === undefined
+          ? { enabled }
+          : { enabled, models_dir: modelsDir },
+      ),
     }),
 };
