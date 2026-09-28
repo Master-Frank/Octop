@@ -10,6 +10,9 @@ export interface ChatAgentOption {
   is_shared?: boolean;
   is_owner?: boolean;
   owner_username?: string | null;
+  /** Remote Bridge shadow expert. */
+  bridge?: boolean;
+  bridge_connection_name?: string | null;
 }
 
 interface ExpertAgentAvatarProps {

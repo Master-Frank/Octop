@@ -23,6 +23,7 @@ import { ExpertIcon } from "../../Experts/components/iconForName";
 import { useHiddenSharedExperts } from "../hooks/useHiddenSharedExperts";
 import SessionChannelIcon from "./SessionChannelIcon";
 import SharedExpertHint from "./SharedExpertHint";
+import RemoteExpertHint from "./RemoteExpertHint";
 import TeamChatBadge from "./TeamChatBadge";
 import styles from "../index.module.less";
 
@@ -303,6 +304,7 @@ function ActiveAgentCard({
               <div className={styles.agentCardName}>{agent.name}</div>
               <TeamChatBadge agent={agent} />
               <SharedExpertHint agent={agent} />
+              <RemoteExpertHint agent={agent} />
             </div>
             <AgentUnreadBadge count={agent.unread_count ?? 0} />
             <button
@@ -442,6 +444,7 @@ function InactiveAgentRow({
               <div className={styles.agentRowName}>{agent.name}</div>
               <TeamChatBadge agent={agent} />
               <SharedExpertHint agent={agent} />
+              <RemoteExpertHint agent={agent} />
             </div>
             <AgentUnreadBadge count={agent.unread_count ?? 0} />
             {onNewChat ? (

@@ -17,6 +17,26 @@ TurnHandler = Callable[[dict[str, Any]], Awaitable[None]]
 JsonHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
 
+def bridge_json_default(obj: Any) -> Any:
+    """Fallback for LangChain messages / Pydantic models in turn chunks.
+
+    Mirrors dashboard WS ``json_chunk_default`` so peer ``turn.chunk`` frames
+    that embed ``HumanMessage`` / ``AIMessage`` do not crash ``json.dumps``.
+    Kept here (not imported from ``api/``) to respect infra → api boundaries.
+    """
+    if hasattr(obj, "model_dump"):
+        try:
+            return obj.model_dump()
+        except Exception:
+            pass
+    if hasattr(obj, "dict"):
+        try:
+            return obj.dict()
+        except Exception:
+            pass
+    return repr(obj)
+
+
 class BridgeSession:
     """One live Bridge WS for a ``connection_id``."""
 
@@ -53,7 +73,9 @@ class BridgeSession:
                 fut.set_exception(ConnectionError("bridge session closed"))
 
     async def send_json(self, payload: dict[str, Any]) -> None:
-        await self._send_text(json.dumps(payload, ensure_ascii=False))
+        await self._send_text(
+            json.dumps(payload, ensure_ascii=False, default=bridge_json_default),
+        )
 
     async def handle_message(self, raw: str) -> None:
         try:

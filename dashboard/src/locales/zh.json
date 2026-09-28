@@ -1186,6 +1186,10 @@
       "banner": "共享专家 · 由 {{name}} 提供",
       "flag": "共享"
     },
+    "remoteExpert": {
+      "banner": "远端专家 · 经「{{name}}」桥接",
+      "flag": "远端"
+    },
     "pushToast": {
       "title": "{{name}} 发来提醒",
       "titleFallback": "任务提醒"
@@ -1551,6 +1555,7 @@
     "dockFileList": "文件变更",
     "dockAddTab": "添加面板",
     "expertSharedBadge": "共享",
+    "expertRemoteBadge": "远端",
     "dockFileListEmpty": "暂无工具生成或发送的文件",
     "dockFileListCount": "{{count}} 个文件",
     "dockFileListHint": "当前仅列出执行过程中生成的文件，不代表最终一定存储，可能在处理结束后被大模型删除。",

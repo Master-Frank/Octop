@@ -1186,6 +1186,10 @@
       "banner": "Shared expert · provided by {{name}}",
       "flag": "Shared"
     },
+    "remoteExpert": {
+      "banner": "Remote expert · via “{{name}}” bridge",
+      "flag": "Remote"
+    },
     "pushToast": {
       "title": "{{name}} sent a reminder",
       "titleFallback": "Task reminder"
@@ -1551,6 +1555,7 @@
     "dockFileList": "File changes",
     "dockAddTab": "Add panel",
     "expertSharedBadge": "Shared",
+    "expertRemoteBadge": "Remote",
     "dockFileListEmpty": "No files from tools yet",
     "dockFileListCount": "{{count}} files",
     "dockFileListHint": "This list only shows files produced during execution. They are not guaranteed to be kept, and the model may delete them after processing finishes.",

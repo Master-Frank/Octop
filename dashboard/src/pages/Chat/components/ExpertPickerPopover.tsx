@@ -113,6 +113,11 @@ export default function ExpertPickerPopover({
                     {t("chat.expertSharedBadge", "共享")}
                   </span>
                 )}
+                {agent.bridge && (
+                  <span className={styles.expertRemoteBadge}>
+                    {t("chat.expertRemoteBadge")}
+                  </span>
+                )}
               </span>
             </button>
             {hideable ? (

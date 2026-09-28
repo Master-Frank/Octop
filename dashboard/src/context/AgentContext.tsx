@@ -149,6 +149,8 @@ export function projectChatAgentOption(agent: OctopAgent): {
   is_shared: boolean;
   is_owner: boolean;
   owner_username: string | null;
+  bridge: boolean;
+  bridge_connection_name: string | null;
 } {
   return {
     agent_id: agent.agent_id,
@@ -159,6 +161,8 @@ export function projectChatAgentOption(agent: OctopAgent): {
     is_shared: Boolean(agent.is_shared),
     is_owner: Boolean(agent.is_owner),
     owner_username: agent.owner_username ?? null,
+    bridge: Boolean(agent.bridge),
+    bridge_connection_name: agent.bridge_connection_name ?? null,
   };
 }
 

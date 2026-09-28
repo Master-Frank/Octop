@@ -107,6 +107,8 @@ describe("projectChatAgentOption", () => {
         is_shared: 1,
         is_owner: 0,
         owner_username: "alice",
+        bridge: true,
+        bridge_connection_name: "lab",
       }),
     );
     expect(projected).toEqual({
@@ -118,6 +120,8 @@ describe("projectChatAgentOption", () => {
       is_shared: true,
       is_owner: false,
       owner_username: "alice",
+      bridge: true,
+      bridge_connection_name: "lab",
     });
   });
 
@@ -126,5 +130,7 @@ describe("projectChatAgentOption", () => {
     expect(projected.owner_username).toBeNull();
     expect(projected.is_shared).toBe(false);
     expect(projected.is_owner).toBe(false);
+    expect(projected.bridge).toBe(false);
+    expect(projected.bridge_connection_name).toBeNull();
   });
 });
