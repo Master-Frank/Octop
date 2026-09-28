@@ -389,6 +389,7 @@
     "BRIDGE_PEER_UNREACHABLE": "Could not reach the remote Octop instance. Confirm the URL is reachable, credentials are correct, and the peer has Bridge support (needs /api/bridge/ws). If the peer is behind NAT, initiate the link from the side that can reach the other.",
     "BRIDGE_NOT_CONNECTED": "Bridge is not connected. Reconnect, or check that the peer is online.",
     "BRIDGE_TUNNEL_FAILED": "Bridge tunnel request failed. The link may have dropped — reconnect and try again.",
+    "BRIDGE_REMOTE_UNSUPPORTED": "This action is not available through the remote bridge. Manage it on the peer Octop.",
     "BRIDGE_DISPLAY_NAME_TAKEN": "Display name \"{{name}}\" is already in use. Choose another.",
     "CRON_TRIGGER_INVALID": "Invalid cron trigger.",
     "SLASH_UNKNOWN": "Unknown slash command.",

@@ -12,7 +12,7 @@ _AGENT_RESOURCE = re.compile(
     r"(?:bridge:[^/]+|[^/]+)"
     r"(?:/(?:threads|history|uploads|avatar|icon|chat|messages|files|workspace"
     r"|attachments|media|turns|memory|skills|tools|mbti|persona|channels"
-    r"|cron|config|state|welcome|members|subagents)(?:/.*)?)?$"
+    r"|cron|config|state|status|welcome|members|subagents)(?:/.*)?)?$"
 )
 
 # Composer read-only surfaces for remote chat (models + knowledge pickers).
@@ -25,6 +25,10 @@ _COMPOSER_READONLY = re.compile(
     r"knowledge-bases/capability"
     r")$"
 )
+
+# Chat dock browser viewer (peer harness). Install / record-replay stay denied.
+_BROWSER_VIEWER_GET = re.compile(r"^/api/browser/(?:env-status|harness-sessions)$")
+_BROWSER_HANDOFF = re.compile(r"^/api/browser/sessions/[^/]+/handoff$")
 
 
 def is_tunnel_path_allowed(method: str, path: str) -> bool:
@@ -42,6 +46,12 @@ def is_tunnel_path_allowed(method: str, path: str) -> bool:
 
     if _COMPOSER_READONLY.fullmatch(raw):
         return verb == "GET"
+
+    if _BROWSER_VIEWER_GET.fullmatch(raw):
+        return verb == "GET"
+
+    if _BROWSER_HANDOFF.fullmatch(raw):
+        return verb == "POST"
 
     if _AGENT_RESOURCE.fullmatch(raw):
         return verb in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}

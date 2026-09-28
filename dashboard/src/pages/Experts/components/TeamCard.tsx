@@ -121,8 +121,9 @@ export const TeamCard = memo(function TeamCard({
     setLocalError(agent.last_error);
   }, [agent.state, agent.last_error]);
 
+  // Poll during transient states (local agents only — bridge shadows have no runtime status).
   useEffect(() => {
-    if (!TRANSIENT.has(localState)) {
+    if (agent.bridge || !TRANSIENT.has(localState)) {
       if (pollRef.current) clearInterval(pollRef.current);
       pollRef.current = null;
       return;
@@ -147,7 +148,7 @@ export const TeamCard = memo(function TeamCard({
       if (pollRef.current) clearInterval(pollRef.current);
       pollRef.current = null;
     };
-  }, [localState, agent.agent_id, onStateChange, refreshAgents]);
+  }, [localState, agent.agent_id, agent.bridge, onStateChange, refreshAgents]);
 
   const isTransient = TRANSIENT.has(localState);
   const switchChecked = localState === "running" || localState === "starting";

@@ -389,6 +389,7 @@
     "BRIDGE_PEER_UNREACHABLE": "无法连接远端 Octop 实例。请确认：地址可访问、账号密码正确，且对端已升级到支持远程桥接的版本（需开放 /api/bridge/ws）。若对端在内网，需由可达的一侧主动发起连接。",
     "BRIDGE_NOT_CONNECTED": "Bridge 尚未连接。请先重新连接，或检查对端是否在线。",
     "BRIDGE_TUNNEL_FAILED": "Bridge 隧道请求失败。连接可能已中断，请尝试重新连接后再试。",
+    "BRIDGE_REMOTE_UNSUPPORTED": "远端暂不支持此操作（经 Bridge 不可用），请在对端 Octop 上管理。",
     "BRIDGE_DISPLAY_NAME_TAKEN": "显示名「{{name}}」已被使用，请换一个。",
     "CRON_TRIGGER_INVALID": "无效的定时触发器。",
     "SLASH_UNKNOWN": "未知的斜杠指令。",

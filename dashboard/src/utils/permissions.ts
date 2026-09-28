@@ -64,7 +64,6 @@ export const ADVANCED_TAB_PERMISSIONS = {
   https: "tls",
   updates: "update",
   captcha: "captcha",
-  bridge: "admin_console",
 } as const;
 
 export const SECURITY_TAB_PERMISSIONS = {
@@ -181,6 +180,9 @@ export function pathPermissionKeys(pathname: string): PermissionKeys | null {
     pathname.startsWith("/knowledge-bases/")
   ) {
     return PERM.knowledgeBasesPage;
+  }
+  if (pathname === "/bridge" || pathname.startsWith("/bridge/")) {
+    return null;
   }
   if (pathname === "/remote-desktop/desktop") {
     return PERM.desktop;

@@ -24,13 +24,27 @@ def test_allows_composer_readonly_paths() -> None:
     assert is_tunnel_path_allowed("GET", "/api/providers/active-model")
     assert is_tunnel_path_allowed("GET", "/api/knowledge-bases")
     assert is_tunnel_path_allowed("GET", "/api/knowledge-bases/capability")
+    assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/status")
     assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/subagents")
+    assert not is_tunnel_path_allowed("GET", "/api/agents/01ABC/history-migration/status")
+    assert not is_tunnel_path_allowed("GET", "/api/agents/01ABC/skill-packages")
     assert not is_tunnel_path_allowed("POST", "/api/providers/resolved")
     assert not is_tunnel_path_allowed("PUT", "/api/providers/active-model")
     assert not is_tunnel_path_allowed("POST", "/api/knowledge-bases")
     assert not is_tunnel_path_allowed("GET", "/api/knowledge-bases/kb1")
     assert not is_tunnel_path_allowed("GET", "/api/knowledge-bases/kb1/documents")
     assert not is_tunnel_path_allowed("GET", "/api/providers")
+
+
+def test_allows_browser_viewer_paths() -> None:
+    assert is_tunnel_path_allowed("GET", "/api/browser/env-status")
+    assert is_tunnel_path_allowed("GET", "/api/browser/harness-sessions")
+    assert is_tunnel_path_allowed("POST", "/api/browser/sessions/user-1/handoff")
+    assert not is_tunnel_path_allowed("POST", "/api/browser/env-status")
+    assert not is_tunnel_path_allowed("POST", "/api/browser/install")
+    assert not is_tunnel_path_allowed("POST", "/api/browser/uninstall")
+    assert not is_tunnel_path_allowed("POST", "/api/browser/shutdown")
+    assert not is_tunnel_path_allowed("GET", "/api/browser/record-replay/status")
 
 
 def test_denies_management_and_auth_paths() -> None:

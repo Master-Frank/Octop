@@ -93,7 +93,14 @@ export const bridgeApi = {
       { method: "POST" },
     ),
 
-  patch: (connectionId: string, body: { auto_reconnect?: boolean }) =>
+  patch: (
+    connectionId: string,
+    body: {
+      auto_reconnect?: boolean;
+      display_name?: string;
+      notes?: string;
+    },
+  ) =>
     request<BridgeConnection>(`/bridge/connections/${connectionId}`, {
       method: "PATCH",
       body: JSON.stringify(body),
@@ -124,4 +131,52 @@ export const bridgeApi = {
     request<KnowledgeCapability>(
       `/bridge/connections/${connectionId}/knowledge-bases/capability`,
     ),
+
+  getBrowserEnvStatus: (connectionId: string) =>
+    request<{
+      playwright: boolean;
+      browsers_ok: boolean;
+      harness_browser: boolean;
+      playwright_chromium?: boolean;
+      chrome_path?: string | null;
+      chrome_source?: string | null;
+      error?: string | null;
+    }>(`/bridge/connections/${connectionId}/browser/env-status`),
+
+  getBrowserSessions: (connectionId: string) =>
+    request<{
+      ok: boolean;
+      environment: "desktop" | "headless-server";
+      sessions: Array<{
+        session_id: string;
+        profile_name: string;
+        conversation_id: string;
+        channel_source: string;
+        state: string;
+        control_owner: "agent" | "user";
+        current_url: string;
+        created_at: number;
+        last_activity_at: number;
+      }>;
+    }>(`/bridge/connections/${connectionId}/browser/harness-sessions`),
+
+  browserHandoff: (
+    connectionId: string,
+    sessionId: string,
+    target: "agent" | "user",
+    reason = "user_button",
+  ) =>
+    request<{ ok: boolean; session: unknown }>(
+      `/bridge/connections/${connectionId}/browser/sessions/${encodeURIComponent(
+        sessionId,
+      )}/handoff`,
+      {
+        method: "POST",
+        body: JSON.stringify({ target, reason }),
+      },
+    ),
+
+  /** Dashboard screencast WS relayed to the peer browser harness. */
+  browserStreamWsPath: (connectionId: string) =>
+    `/bridge/connections/${encodeURIComponent(connectionId)}/browser-stream/ws`,
 };

@@ -8,10 +8,10 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import Request
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 
 from octop.infra.bridge.ids import BRIDGE_AGENT_PREFIX, parse_bridge_agent_id
-from octop.infra.errors import OctopError
+from octop.infra.errors import ErrorCode, OctopError
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +21,41 @@ _INSTALL_ATTR = "_octop_bridge_proxy_installed"
 _BRIDGE_AGENT_PATH = re.compile(
     r"^/api/agents/(bridge(?::|%3[Aa])[^/]+)(/.*)?$",
 )
+
+
+def _local_bridge_shadow_response(
+    *,
+    method: str,
+    rest: str,
+) -> JSONResponse | None:
+    """Answer hub-only poll paths without tunneling to the peer.
+
+    ``/status`` is tunneled (peer allowlist) so the hub sees real harness state.
+    ``history-migration`` is a local-archive concern and must not hop the bridge.
+    """
+    verb = (method or "GET").upper()
+    path = rest or ""
+
+    if path.startswith("/history-migration"):
+        if verb == "GET" and path == "/history-migration/status":
+            return JSONResponse(
+                {
+                    "remaining": 0,
+                    "pending": 0,
+                    "queued": 0,
+                    "running": 0,
+                    "failed": 0,
+                    "processing": False,
+                    "agent_busy": False,
+                    "can_start": False,
+                }
+            )
+        raise OctopError(
+            ErrorCode.BRIDGE_REMOTE_UNSUPPORTED,
+            "This action is not available through the remote bridge. Manage it on the peer Octop.",
+        )
+
+    return None
 
 
 def install(app: Any, server: Any) -> None:
@@ -57,6 +92,22 @@ def install(app: Any, server: Any) -> None:
         if user is None or mgr is None:
             return await call_next(request)
 
+        try:
+            local = _local_bridge_shadow_response(
+                method=request.method,
+                rest=rest,
+            )
+        except OctopError as exc:
+            from octop.infra.utils.locale import resolve_request_locale
+
+            locale = resolve_request_locale(request)
+            return JSONResponse(
+                status_code=exc.status,
+                content=exc.to_envelope(locale=locale),
+            )
+        if local is not None:
+            return local
+
         remote_path = f"/api/agents/{ref.remote_agent_id}{rest}"
         body = await request.body()
         headers = {
@@ -82,13 +133,15 @@ def install(app: Any, server: Any) -> None:
                 body=body or None,
             )
         except OctopError as exc:
-            from fastapi.responses import JSONResponse
+            from octop.infra.utils.locale import resolve_request_locale
 
-            return JSONResponse(status_code=exc.status, content=exc.to_envelope())
+            locale = resolve_request_locale(request)
+            return JSONResponse(
+                status_code=exc.status,
+                content=exc.to_envelope(locale=locale),
+            )
         except Exception:
             logger.exception("bridge proxy failed path=%s", path)
-            from fastapi.responses import JSONResponse
-
             return JSONResponse(
                 status_code=502,
                 content={

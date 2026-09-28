@@ -53,13 +53,13 @@
 | `infra/bridge/http_tunnel.py` | 通用 `method/path/query/headers/body` ↔ 响应；分片、超时、取消 |
 | `infra/bridge/router.py` | 本机侧：目标为 `bridge:*`（或显式 connection 上下文）时改走隧道 |
 | `infra/bridge/chat_bridge.py` | 远程对话：本机 chat WS ↔ 桥上对端 turn 流 |
-| `api/routers/bridge.py` | 连接管理 HTTP（探测/添加/列表/删除/连接）；Dashboard 入口在 **Admin → Advanced → 远程桥接** tab（`/admin/advanced?tab=bridge`） |
+| `api/routers/bridge.py` | 连接管理 HTTP（探测/添加/列表/删除/连接/改名）；Dashboard 入口在 **设置 → 远程桥接**（`/bridge`，知识库下方） |
 
 ### 探测（probe，不落库）
 
 添加连接前可先 `POST /api/bridge/probe`：用填写的 `peer_base_url` + 用户名/密码对端 HTTP 登录，再拉 `GET /api/agents?scope=mine`，返回专家摘要列表（`agent_id` / `name` / `description` / 绝对 `icon_url` 等）。**不**写入 `bridge_connections`，**不**建立 Bridge WS。Dashboard 添加抽屉里的「探测」按钮走此接口。
 
-「保存并连接」仅在登录 + Bridge WS `hello_ack` 成功后落库；失败回滚。管理 API 需 `admin_console`。入站隧道允许 agent 相关 path，以及只读的 `GET /api/providers/resolved`、`GET /api/providers/active-model`、`GET /api/knowledge-bases`、`GET /api/knowledge-bases/capability`（远端聊天 composer）；入站 hello 不得抢占他人 `connection_id`。
+「保存并连接」仅在登录 + Bridge WS `hello_ack` 成功后落库；失败回滚。管理 API 按连接所有者鉴权（登录用户即可管理自己的桥）。入站隧道允许 agent 相关 path（含 `GET …/status`），以及只读的 `GET /api/providers/resolved`、`GET /api/providers/active-model`、`GET /api/knowledge-bases`、`GET /api/knowledge-bases/capability`（远端聊天 composer），以及 Chat dock 浏览器 viewer：`GET /api/browser/env-status`、`GET /api/browser/harness-sessions`、`POST /api/browser/sessions/{id}/handoff`。`history-migration` 仅本机处理，不入隧道。入站 hello 不得抢占他人 `connection_id`。旧入口 `/admin/advanced?tab=bridge` 会重定向到 `/bridge`。
 
 
 依赖：`api` → `infra/bridge` → 现有 `infra`（对端登录、对端执行 agents/history/upload）。  
@@ -143,6 +143,7 @@
 - 本机识别 `bridge:*`：不启本地 harness；将 user_turn / subscribe 转到对端对应 agent 的对话通道。
 - 对端正常 `GlobalProcessor → harness`；chunk 经桥回传，本机再推给浏览器（帧形状尽量与现有 dashboard chat 一致）。
 - 同一条 Bridge WS 上：**HTTP 隧道**与 **turn 流式帧**多路复用。
+- Chat dock「远程浏览器」在 `bridge:*` 专家下经隧道读对端 `env-status` / `harness-sessions` / `handoff`，画面走显式 `browser.*` 中继（`WS /api/bridge/connections/{id}/browser-stream/ws`）；独立 Remote Browser 页与 install/录制仍打本机。
 
 ### 6.3 会话与历史
 

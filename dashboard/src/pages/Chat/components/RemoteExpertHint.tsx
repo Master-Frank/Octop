@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { Tooltip } from "antd";
+import { Cable } from "lucide-react";
 import styles from "../index.module.less";
 
 interface RemoteExpertHintProps {
@@ -12,7 +13,7 @@ interface RemoteExpertHintProps {
   connectionName?: string | null;
 }
 
-/** Marks a sidebar / picker row as a remote Bridge shadow expert. */
+/** Marks a sidebar / picker / experts row as a remote Bridge shadow expert. */
 export default function RemoteExpertHint({
   agent,
   show,
@@ -26,9 +27,6 @@ export default function RemoteExpertHint({
   const tip = name
     ? t("chat.remoteExpert.banner", { name })
     : t("chat.remoteExpert.flag");
-  const label = name
-    ? t("chat.remoteExpert.namedFlag", { name })
-    : t("chat.remoteExpert.flag");
   return (
     <Tooltip title={tip} mouseEnterDelay={0.35}>
       <span
@@ -36,7 +34,8 @@ export default function RemoteExpertHint({
         aria-label={tip}
         onClick={(event) => event.stopPropagation()}
       >
-        {label}
+        <Cable size={11} strokeWidth={2.2} aria-hidden />
+        {name ? <span className={styles.remoteExpertName}>{name}</span> : null}
       </span>
     </Tooltip>
   );

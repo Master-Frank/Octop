@@ -196,6 +196,27 @@ class BridgeConnectionRepo:
                 (1 if enabled else 0, ts, connection_id),
             )
 
+    def update_meta(
+        self,
+        connection_id: str,
+        *,
+        display_name: str,
+        notes: str | None,
+    ) -> BridgeConnectionRow | None:
+        """Overwrite display_name and notes for a connection."""
+        name = display_name.strip()
+        if not name:
+            raise ValueError("display_name required")
+        note = (notes or "").strip() or None
+        ts = now_ts()
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE bridge_connections SET display_name = ?, notes = ?, updated_at = ? "
+                "WHERE connection_id = ?",
+                (name, note, ts, connection_id),
+            )
+        return self.get(connection_id)
+
     def upsert_reverse(
         self,
         *,

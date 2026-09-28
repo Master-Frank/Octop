@@ -130,6 +130,7 @@
     "BRIDGE_PEER_UNREACHABLE": "无法连接远端 Octop 实例。请确认：地址可访问、账号密码正确，且对端已升级到支持远程桥接的版本（需开放 /api/bridge/ws）。若对端在内网，需由可达的一侧主动发起连接。",
     "BRIDGE_NOT_CONNECTED": "Bridge 尚未连接。请先重新连接，或检查对端是否在线。",
     "BRIDGE_TUNNEL_FAILED": "Bridge 隧道请求失败。连接可能已中断，请尝试重新连接后再试。",
+    "BRIDGE_REMOTE_UNSUPPORTED": "远端暂不支持此操作（经 Bridge 不可用），请在对端 Octop 上管理。",
     "BRIDGE_DISPLAY_NAME_TAKEN": "显示名「{{name}}」已被使用，请换一个。",
     "CRON_TRIGGER_INVALID": "无效的定时触发器。",
     "SLASH_UNKNOWN": "未知的斜杠指令。",
@@ -1189,7 +1190,6 @@
     "remoteExpert": {
       "banner": "远端专家 · 经「{{name}}」桥接",
       "flag": "远端",
-      "namedFlag": "远端·{{name}}",
       "manageOnPeer": "需在远端修改",
       "manageToast": "当前是远端专家，技能 / 模型 / 知识库等请在对端 Octop 上管理"
     },
@@ -3282,6 +3282,10 @@
       "deleteFailed": "删除桥接连接失败",
       "deleteConfirmTitle": "删除此桥接连接？",
       "deleteConfirmDesc": "将断开「{{name}}」并清除已保存的远端凭证。此操作不可撤销。",
+      "editTitle": "编辑连接",
+      "editHint": "可修改显示名称与备注；远端地址和账号密码不变。",
+      "editSaved": "连接已更新",
+      "editFailed": "更新连接失败",
       "emptyTitle": "暂无远程桥接",
       "emptyDesc": "填写远端 Octop 地址、用户名和密码后即可添加。",
       "drawerHint": "显示名用于聊天页分组切换（须唯一）。建议先「探测」确认账号可达；「保存并连接」仅在登录与桥接握手都成功后才会落库，失败不会占用显示名。",
@@ -5947,6 +5951,10 @@
     "adminAdvanced": {
       "title": "应用设置",
       "subtitle": "环境变量、备份、HTTPS 与更新"
+    },
+    "bridge": {
+      "title": "远程桥接",
+      "subtitle": "连接另一台 Octop，在本机与对端专家对话"
     },
     "security": {
       "title": "安全防护",

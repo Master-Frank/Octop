@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 SendText = Callable[[str], Awaitable[None]]
 TunnelHandler = Callable[[dict[str, Any]], Awaitable[dict[str, Any]]]
 TurnHandler = Callable[[dict[str, Any]], Awaitable[None]]
+BrowserHandler = Callable[[dict[str, Any]], Awaitable[None]]
 JsonHandler = Callable[[dict[str, Any]], Awaitable[None]]
 
 
@@ -47,12 +48,14 @@ class BridgeSession:
         send_text: SendText,
         on_tunnel_request: TunnelHandler | None = None,
         on_turn_frame: TurnHandler | None = None,
+        on_browser_frame: BrowserHandler | None = None,
         on_raw: JsonHandler | None = None,
     ) -> None:
         self.connection_id = connection_id
         self._send_text = send_text
         self._on_tunnel_request = on_tunnel_request
         self._on_turn_frame = on_turn_frame
+        self._on_browser_frame = on_browser_frame
         self._on_raw = on_raw
         self._pending: dict[str, asyncio.Future[dict[str, Any]]] = {}
         self._closed = asyncio.Event()
@@ -92,15 +95,27 @@ class BridgeSession:
                 result = await self._on_tunnel_request(payload)
                 await self.send_json({"type": "tunnel.response", "id": req_id, **result})
             except Exception as exc:
-                logger.exception("bridge tunnel request failed id=%s", req_id)
-                await self.send_json(
-                    {
-                        "type": "tunnel.error",
-                        "id": req_id,
-                        "code": "TUNNEL_ERROR",
-                        "message": str(exc)[:500],
-                    }
-                )
+                from octop.infra.errors import OctopError
+
+                if isinstance(exc, OctopError):
+                    await self.send_json(
+                        {
+                            "type": "tunnel.error",
+                            "id": req_id,
+                            "code": exc.code.value,
+                            "message": str(exc)[:500],
+                        }
+                    )
+                else:
+                    logger.exception("bridge tunnel request failed id=%s", req_id)
+                    await self.send_json(
+                        {
+                            "type": "tunnel.error",
+                            "id": req_id,
+                            "code": "TUNNEL_ERROR",
+                            "message": str(exc)[:500],
+                        }
+                    )
             return
         if msg_type in {"tunnel.response", "tunnel.error"}:
             req_id = str(payload.get("id") or "")
@@ -110,6 +125,9 @@ class BridgeSession:
             return
         if msg_type.startswith("turn.") and self._on_turn_frame is not None:
             await self._on_turn_frame(payload)
+            return
+        if msg_type.startswith("browser.") and self._on_browser_frame is not None:
+            await self._on_browser_frame(payload)
             return
         if self._on_raw is not None:
             await self._on_raw(payload)

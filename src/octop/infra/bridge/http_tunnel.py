@@ -72,8 +72,8 @@ async def execute_local_http(
     """Run ``method path`` against the local FastAPI app as ``access_token``."""
     if not is_tunnel_path_allowed(method, path):
         raise OctopError(
-            ErrorCode.BRIDGE_TUNNEL_FAILED,
-            f"tunnel path not allowed: {method.upper()} {path}",
+            ErrorCode.BRIDGE_REMOTE_UNSUPPORTED,
+            "This action is not available through the remote bridge. Manage it on the peer Octop.",
         )
     clean_headers = {
         k: v

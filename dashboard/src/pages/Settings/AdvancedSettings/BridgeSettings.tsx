@@ -30,6 +30,7 @@ import {
   List,
   Lock,
   Plus,
+  Pencil,
   RefreshCw,
   Share2,
   Tag as TagIcon,
@@ -233,6 +234,7 @@ interface ConnectionActions {
   onConnect: (row: BridgeConnection) => Promise<void>;
   onDisconnect: (row: BridgeConnection) => Promise<void>;
   onDelete: (row: BridgeConnection) => Promise<void>;
+  onEdit: (row: BridgeConnection) => void;
   onToggleAutoReconnect: (
     row: BridgeConnection,
     enabled: boolean,
@@ -320,6 +322,14 @@ function BridgeConnectionCard({
           </Tooltip>
         </div>
         <div className={styles.backendActionsRight}>
+          <Button
+            size="small"
+            type="text"
+            icon={<Pencil size={14} />}
+            onClick={() => actions.onEdit(row)}
+          >
+            {t("common.edit")}
+          </Button>
           {connected ? (
             <Button
               size="small"
@@ -369,7 +379,11 @@ function BridgeConnectionCard({
   );
 }
 
-export default function BridgeSettingsPanel() {
+export default function BridgeSettingsPanel({
+  asPage = false,
+}: {
+  asPage?: boolean;
+}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { refresh: refreshAgents } = useAgent();
@@ -386,11 +400,33 @@ export default function BridgeSettingsPanel() {
     null,
   );
   const [form] = Form.useForm();
+  const [editOpen, setEditOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTarget, setEditTarget] = useState<BridgeConnection | null>(null);
+  const [editForm] = Form.useForm();
 
   const closeCreateDrawer = () => {
     setCreateOpen(false);
     setProbeResult(null);
     form.resetFields();
+  };
+
+  const openEditDrawer = useCallback(
+    (row: BridgeConnection) => {
+      setEditTarget(row);
+      editForm.setFieldsValue({
+        display_name: row.display_name,
+        notes: row.notes ?? "",
+      });
+      setEditOpen(true);
+    },
+    [editForm],
+  );
+
+  const closeEditDrawer = () => {
+    setEditOpen(false);
+    setEditTarget(null);
+    editForm.resetFields();
   };
 
   const reload = useCallback(async () => {
@@ -425,6 +461,29 @@ export default function BridgeSettingsPanel() {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  const onSaveEdit = async () => {
+    if (!editTarget) return;
+    try {
+      const values = await editForm.validateFields();
+      setEditing(true);
+      await bridgeApi.patch(editTarget.connection_id, {
+        display_name: values.display_name,
+        notes: values.notes ?? "",
+      });
+      message.success(t("advancedSettings.bridge.editSaved"));
+      closeEditDrawer();
+      await reload();
+      await refreshAgents({ silent: true, force: true });
+    } catch (err) {
+      if (err && typeof err === "object" && "errorFields" in err) return;
+      message.error(
+        apiErrorMessage(err, t("advancedSettings.bridge.editFailed"), t),
+      );
+    } finally {
+      setEditing(false);
+    }
+  };
 
   const onCreate = async () => {
     try {
@@ -516,6 +575,9 @@ export default function BridgeSettingsPanel() {
           );
         }
       },
+      onEdit: (row) => {
+        openEditDrawer(row);
+      },
       onToggleAutoReconnect: async (row, enabled) => {
         try {
           await bridgeApi.patch(row.connection_id, {
@@ -533,7 +595,7 @@ export default function BridgeSettingsPanel() {
         navigate(`/chat/${encodeURIComponent(agentId)}`);
       },
     }),
-    [navigate, refreshAgents, reload, t],
+    [navigate, openEditDrawer, refreshAgents, reload, t],
   );
 
   const columns = useMemo<ColumnsType<BridgeConnection>>(
@@ -613,9 +675,17 @@ export default function BridgeSettingsPanel() {
       {
         title: t("common.actions"),
         key: "actions",
-        width: 180,
+        width: 240,
         render: (_: unknown, row) => (
           <div className={styles.tableActions}>
+            <Button
+              size="small"
+              type="link"
+              icon={<Pencil size={14} />}
+              onClick={() => actions.onEdit(row)}
+            >
+              {t("common.edit")}
+            </Button>
             {row.status === "connected" ? (
               <Button
                 size="small"
@@ -689,31 +759,43 @@ export default function BridgeSettingsPanel() {
     />
   );
 
+  const headerActions = (
+    <>
+      {rows.length > 0 ? viewToggle : null}
+      <Button icon={<RefreshCw size={14} />} onClick={() => void reload()}>
+        {t("common.refresh")}
+      </Button>
+      <Button
+        type="primary"
+        icon={<Plus size={14} />}
+        onClick={() => setCreateOpen(true)}
+      >
+        {t("advancedSettings.bridge.add")}
+      </Button>
+    </>
+  );
+
   return (
     <>
-      <TabPanelHeader
-        icon={<Share2 size={18} strokeWidth={1.8} />}
-        title={t("advancedSettings.bridge.title")}
-        description={t("advancedSettings.bridge.description")}
-        actions={
-          <>
-            {rows.length > 0 ? viewToggle : null}
-            <Button
-              icon={<RefreshCw size={14} />}
-              onClick={() => void reload()}
-            >
-              {t("common.refresh")}
-            </Button>
-            <Button
-              type="primary"
-              icon={<Plus size={14} />}
-              onClick={() => setCreateOpen(true)}
-            >
-              {t("advancedSettings.bridge.add")}
-            </Button>
-          </>
-        }
-      />
+      {asPage ? (
+        <div className={styles.pageToolbar}>
+          <span className={styles.gridCount}>
+            {!loading && rows.length > 0
+              ? t("advancedSettings.bridge.totalConnections", {
+                  count: rows.length,
+                })
+              : null}
+          </span>
+          <div className={styles.pageToolbarActions}>{headerActions}</div>
+        </div>
+      ) : (
+        <TabPanelHeader
+          icon={<Share2 size={18} strokeWidth={1.8} />}
+          title={t("advancedSettings.bridge.title")}
+          description={t("advancedSettings.bridge.description")}
+          actions={headerActions}
+        />
+      )}
 
       {loading ? (
         <div className={styles.loading}>
@@ -727,13 +809,15 @@ export default function BridgeSettingsPanel() {
         />
       ) : (
         <>
-          <div className={styles.gridToolbar}>
-            <span className={styles.gridCount}>
-              {t("advancedSettings.bridge.totalConnections", {
-                count: rows.length,
-              })}
-            </span>
-          </div>
+          {!asPage ? (
+            <div className={styles.gridToolbar}>
+              <span className={styles.gridCount}>
+                {t("advancedSettings.bridge.totalConnections", {
+                  count: rows.length,
+                })}
+              </span>
+            </div>
+          ) : null}
           {showCardView ? (
             <div className={styles.cardGrid}>
               {rows.map((row) => (
@@ -918,6 +1002,60 @@ export default function BridgeSettingsPanel() {
             <ProbeAgentList agents={probeResult.agents} />
           </div>
         ) : null}
+      </Drawer>
+
+      <Drawer
+        title={t("advancedSettings.bridge.editTitle")}
+        open={editOpen}
+        onClose={closeEditDrawer}
+        width={420}
+        destroyOnClose
+        footer={
+          <div className={styles.drawerFooter}>
+            <Button onClick={closeEditDrawer}>{t("common.cancel")}</Button>
+            <Button
+              type="primary"
+              loading={editing}
+              onClick={() => void onSaveEdit()}
+            >
+              {t("common.save")}
+            </Button>
+          </div>
+        }
+      >
+        <p className={styles.meta}>{t("advancedSettings.bridge.editHint")}</p>
+        <Form form={editForm} layout="vertical" requiredMark={false}>
+          <Form.Item
+            name="display_name"
+            label={t("advancedSettings.bridge.displayName")}
+            rules={[
+              {
+                required: true,
+                whitespace: true,
+                message: t("advancedSettings.bridge.displayNameRequired"),
+              },
+            ]}
+            extra={t("advancedSettings.bridge.displayNameHint")}
+          >
+            <Input
+              prefix={<TagIcon {...FIELD_ICON} />}
+              placeholder={t("advancedSettings.bridge.displayNamePlaceholder")}
+              maxLength={64}
+              autoFocus
+            />
+          </Form.Item>
+          <Form.Item
+            name="notes"
+            label={t("advancedSettings.bridge.notes")}
+            rules={[{ max: 500 }]}
+          >
+            <Input.TextArea
+              placeholder={t("advancedSettings.bridge.notesPlaceholder")}
+              autoSize={{ minRows: 2, maxRows: 4 }}
+              maxLength={500}
+            />
+          </Form.Item>
+        </Form>
       </Drawer>
     </>
   );

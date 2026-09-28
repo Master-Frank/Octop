@@ -48,6 +48,7 @@ import {
 } from "./utils/chromeInstallGate";
 import { isFileToolName } from "./constants";
 import { browserApi } from "../../api/modules/browser";
+import { bridgeApi } from "../../api/modules/bridge";
 import { octopThreadsApi } from "../../api/modules/octopThreads";
 import type { TokenUsage } from "../../api/types";
 import type { ChatAttachment } from "./hooks/useChat";
@@ -377,7 +378,11 @@ function ChatPageInner() {
     controlOwner: browserControlOwner,
     environment: browserEnvironment,
     refresh: refreshBrowserSession,
-  } = useBrowserSessionState(threadId, hasBrowserTool);
+  } = useBrowserSessionState(
+    threadId,
+    hasBrowserTool,
+    activeAgent?.bridge ? activeAgent.bridge_connection_id : null,
+  );
 
   refreshBrowserRef.current = refreshBrowserSession;
 
@@ -407,6 +412,10 @@ function ChatPageInner() {
   } = useChatDockPanel(isMobile, resolvedAgentId);
 
   const chromeCheckInFlightRef = useRef(false);
+  const bridgeConnectionId =
+    activeAgent?.bridge && activeAgent.bridge_connection_id
+      ? activeAgent.bridge_connection_id
+      : null;
   const ensureChromeThen = useCallback(
     async (then: () => void) => {
       // A live session means Chrome is already running — skip the probe.
@@ -414,8 +423,26 @@ function ChatPageInner() {
         if (chromeCheckInFlightRef.current) return;
         chromeCheckInFlightRef.current = true;
         try {
-          const env = await browserApi.checkEnvStatus();
+          const env = bridgeConnectionId
+            ? await bridgeApi.getBrowserEnvStatus(bridgeConnectionId)
+            : await browserApi.checkEnvStatus();
           if (shouldJumpToChromeInstall(env)) {
+            // Peer Chromium install is not tunneled — only nudge local install UX.
+            if (bridgeConnectionId) {
+              showConfirmModal(
+                {
+                  title: t("browserWorkspace.chromeMissingTitle"),
+                  content: t(
+                    "chat.remoteExpert.manageToast",
+                    "当前是远端专家，技能 / 模型 / 知识库等请在对端 Octop 上管理",
+                  ),
+                  okText: t("common.confirm"),
+                  cancelText: t("common.cancel"),
+                },
+                { isMobile },
+              );
+              return;
+            }
             showConfirmModal(
               {
                 title: t("browserWorkspace.chromeMissingTitle"),
@@ -438,7 +465,7 @@ function ChatPageInner() {
       }
       then();
     },
-    [browserSessionId, isMobile, navigate, t],
+    [browserSessionId, bridgeConnectionId, isMobile, navigate, t],
   );
 
   const handleToggleBrowserPanel = useCallback(() => {
@@ -1655,6 +1682,7 @@ function ChatPageInner() {
             onCloseTab={closeDockTab}
             onOpenFile={openFileAt}
             browserEnvironment={browserEnvironment}
+            bridgeConnectionId={bridgeConnectionId}
             threadId={activeThreadId}
             isStreamingTurn={isStreaming}
             onModeChange={handleDockModeChange}

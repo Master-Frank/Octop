@@ -4,7 +4,6 @@ import {
   Archive,
   Lock,
   RefreshCw,
-  Share2,
   ShieldCheck,
   Variable,
   Activity,
@@ -15,7 +14,6 @@ import BackupRestorePanel from "../BackupRestore";
 import { HttpsSettingsPanel } from "../HttpsSettings";
 import UpdateConfig from "./UpdateConfig";
 import CaptchaSettingsPanel from "./CaptchaSettings";
-import BridgeSettingsPanel from "./BridgeSettings";
 import PageShell from "../../../layouts/PageShell";
 import TabBar, { type TabBarItem } from "../../../components/TabLabel/TabBar";
 import tabStyles from "./tabContent.module.less";
@@ -29,8 +27,7 @@ type TabKey =
   | "backup"
   | "https"
   | "updates"
-  | "captcha"
-  | "bridge";
+  | "captcha";
 
 const TABS: TabBarItem<TabKey>[] = [
   { key: "env-vars", labelKey: "nav.environments", icon: Variable },
@@ -38,7 +35,6 @@ const TABS: TabBarItem<TabKey>[] = [
   { key: "backup", labelKey: "nav.backupRestore", icon: Archive },
   { key: "https", labelKey: "nav.https", icon: Lock },
   { key: "captcha", labelKey: "nav.loginCaptcha", icon: ShieldCheck },
-  { key: "bridge", labelKey: "nav.bridge", icon: Share2 },
   { key: "updates", labelKey: "nav.checkUpdates", icon: RefreshCw },
 ];
 
@@ -48,8 +44,7 @@ function parseTab(raw: string | null): TabKey {
     raw === "backup" ||
     raw === "https" ||
     raw === "updates" ||
-    raw === "captcha" ||
-    raw === "bridge"
+    raw === "captcha"
   ) {
     return raw;
   }
@@ -70,6 +65,9 @@ export default function AdvancedSettingsPage() {
   if (moved === "voice" || moved === "search") {
     return <Navigate to={`/admin/models?tab=${moved}`} replace />;
   }
+  if (moved === "bridge") {
+    return <Navigate to="/bridge" replace />;
+  }
 
   if (forbidden) return <ForbiddenPage />;
 
@@ -87,8 +85,6 @@ export default function AdvancedSettingsPage() {
         return <UpdateConfig />;
       case "captcha":
         return <CaptchaSettingsPanel />;
-      case "bridge":
-        return <BridgeSettingsPanel />;
     }
   };
 
@@ -100,7 +96,7 @@ export default function AdvancedSettingsPage() {
         <TabBar tabs={allowedTabs} activeKey={activeTab} onChange={selectTab} />
       }
     >
-      <div className={tabStyles.panel}>{renderTab()}</div>
+      <div className={tabStyles.tabContent}>{renderTab()}</div>
     </PageShell.Tabbed>
   );
 }
