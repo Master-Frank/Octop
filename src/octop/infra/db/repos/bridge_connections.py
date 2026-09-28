@@ -23,6 +23,7 @@ class BridgeConnectionRow:
     status: str
     last_error: str | None
     last_seen_at: int | None
+    auto_reconnect: bool
     created_at: int
     updated_at: int
 
@@ -31,6 +32,8 @@ class BridgeConnectionRow:
         cred = r["credential_blob"]
         token = r["access_token_blob"]
         raw_notes = r["notes"]
+        keys = set(r.keys()) if hasattr(r, "keys") else set()
+        auto_raw = r["auto_reconnect"] if "auto_reconnect" in keys else 1
         return cls(
             pk=int(r["id"]),
             connection_id=str(r["connection_id"]),
@@ -45,6 +48,7 @@ class BridgeConnectionRow:
             status=str(r["status"] or "disconnected"),
             last_error=r["last_error"],
             last_seen_at=r["last_seen_at"],
+            auto_reconnect=bool(int(auto_raw or 0)),
             created_at=int(r["created_at"]),
             updated_at=int(r["updated_at"]),
         )
@@ -67,6 +71,7 @@ class BridgeConnectionRepo:
         access_token_blob: bytes | None = None,
         token_expires_at: int | None = None,
         status: str = "disconnected",
+        auto_reconnect: bool = True,
     ) -> BridgeConnectionRow:
         ts = now_ts()
         with self._db.transaction() as conn:
@@ -74,8 +79,8 @@ class BridgeConnectionRepo:
                 "INSERT INTO bridge_connections("
                 "connection_id, owner_user_id, peer_base_url, peer_username, display_name, "
                 "notes, credential_blob, access_token_blob, token_expires_at, status, "
-                "created_at, updated_at"
-                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "auto_reconnect, created_at, updated_at"
+                ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (
                     connection_id,
                     owner_user_id,
@@ -87,6 +92,7 @@ class BridgeConnectionRepo:
                     access_token_blob,
                     token_expires_at,
                     status,
+                    1 if auto_reconnect else 0,
                     ts,
                     ts,
                 ),
@@ -128,6 +134,13 @@ class BridgeConnectionRepo:
                 "SELECT * FROM bridge_connections WHERE owner_user_id = ? "
                 "ORDER BY updated_at DESC, id DESC",
                 (owner_user_id,),
+            ).fetchall()
+        return map_rows(rows, BridgeConnectionRow)
+
+    def list_auto_reconnect(self) -> list[BridgeConnectionRow]:
+        with self._db.connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM bridge_connections WHERE auto_reconnect = 1 ORDER BY id ASC"
             ).fetchall()
         return map_rows(rows, BridgeConnectionRow)
 
@@ -173,6 +186,15 @@ class BridgeConnectionRepo:
                     "updated_at = ? WHERE connection_id = ?",
                     (status, last_error, ts, connection_id),
                 )
+
+    def set_auto_reconnect(self, connection_id: str, enabled: bool) -> None:
+        ts = now_ts()
+        with self._db.transaction() as conn:
+            conn.execute(
+                "UPDATE bridge_connections SET auto_reconnect = ?, updated_at = ? "
+                "WHERE connection_id = ?",
+                (1 if enabled else 0, ts, connection_id),
+            )
 
     def upsert_reverse(
         self,

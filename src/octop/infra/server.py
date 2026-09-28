@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import gzip
 import logging
 import os
@@ -524,6 +525,13 @@ class OctopServer:
         from octop.infra.knowledge.jobs import resume_pending_index_jobs  # noqa: PLC0415
 
         resume_pending_index_jobs(self.services)
+
+        # Resume Bridge links that opted into auto-reconnect (best-effort).
+        async def _resume_bridges() -> None:
+            with suppress(Exception):
+                await bridge_mgr.resume_auto_connections()
+
+        asyncio.create_task(_resume_bridges(), name="bridge-auto-resume")
 
     def _emit_wizard_password(self, *, user_count: int) -> None:
         config = self.config

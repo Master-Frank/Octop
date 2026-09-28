@@ -1,0 +1,57 @@
+"""Rewrite peer agent icon URLs for local Bridge shadow experts."""
+
+from __future__ import annotations
+
+from urllib.parse import quote, urlsplit
+
+from octop.infra.agents.experts.avatar import agent_avatar_api_path
+
+
+def bridge_avatar_api_path(bridge_agent_id: str) -> str:
+    """Percent-encode Bridge agent ids (contain ``:``) for safe URL path segments."""
+    if ":" not in bridge_agent_id:
+        return agent_avatar_api_path(bridge_agent_id)
+    return f"/api/agents/{quote(bridge_agent_id, safe='')}/avatar"
+
+
+def rewrite_remote_icon_url(
+    raw: str | None,
+    *,
+    remote_agent_id: str,
+    bridge_agent_id: str,
+) -> str | None:
+    """Map a peer ``icon_url`` to something the local dashboard can load.
+
+    - Bundled ``/experts/avatars/…`` paths stay as-is (same assets locally).
+    - Absolute CDN / SkillHub ``http(s)://…`` URLs stay as-is.
+    - Peer ``/api/agents/{id}/avatar`` (and absolute peer equivalents) become
+      the local Bridge proxy avatar path.
+    - Empty → ``None`` so the UI falls back to ``icon_name``.
+    """
+    text = str(raw or "").strip()
+    if not text:
+        return None
+
+    path = text
+    query = ""
+    if text.startswith("http://") or text.startswith("https://"):
+        parts = urlsplit(text)
+        path = parts.path or "/"
+        query = parts.query or ""
+        # External portraits (CDN) — browser can fetch directly.
+        if not path.startswith("/api/agents/") and not path.startswith("/experts/"):
+            return text
+
+    path_only = path.split("?", 1)[0]
+    if path_only.startswith("/experts/"):
+        return path_only + (f"?{query}" if query else "")
+
+    # Uploaded workspace avatar (or legacy ``/icon``) → tunnel via Bridge proxy.
+    if path_only.endswith("/avatar") or path_only.endswith("/icon"):
+        return bridge_avatar_api_path(bridge_agent_id)
+
+    # Rare relative path — keep so we do not force a Lucide fallback incorrectly.
+    if path_only.startswith("/"):
+        return path_only
+    _ = remote_agent_id  # reserved for future peer-id-specific rewrites
+    return None

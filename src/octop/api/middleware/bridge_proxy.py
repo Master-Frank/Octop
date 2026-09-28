@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 _INSTALL_ATTR = "_octop_bridge_proxy_installed"
 
-# /api/agents/bridge:{cid}:{aid} or /api/agents/bridge:{cid}:{aid}/...
+# /api/agents/bridge:{cid}:{aid} or percent-encoded bridge%3A…
 _BRIDGE_AGENT_PATH = re.compile(
-    r"^/api/agents/(bridge:[^/]+)(/.*)?$",
+    r"^/api/agents/(bridge(?::|%3[Aa])[^/]+)(/.*)?$",
 )
 
 
@@ -43,6 +43,10 @@ def install(app: Any, server: Any) -> None:
 
         agent_token = match.group(1)
         rest = match.group(2) or ""
+        # Starlette usually decodes; still normalize percent-encoded ``:``.
+        from urllib.parse import unquote
+
+        agent_token = unquote(agent_token)
         ref = parse_bridge_agent_id(agent_token)
         if ref is None:
             return await call_next(request)

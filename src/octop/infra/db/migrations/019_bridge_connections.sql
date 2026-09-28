@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS bridge_connections (
   status                  TEXT NOT NULL DEFAULT 'disconnected',
   last_error              TEXT,
   last_seen_at            INTEGER,
+  auto_reconnect          INTEGER NOT NULL DEFAULT 1,
   created_at              INTEGER NOT NULL,
   updated_at              INTEGER NOT NULL
 );

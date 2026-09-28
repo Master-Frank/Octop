@@ -1188,7 +1188,8 @@
     },
     "remoteExpert": {
       "banner": "远端专家 · 经「{{name}}」桥接",
-      "flag": "远端"
+      "flag": "远端",
+      "namedFlag": "远端·{{name}}"
     },
     "pushToast": {
       "title": "{{name}} 发来提醒",
@@ -3309,7 +3310,9 @@
         "disconnected": "未连接",
         "connecting": "连接中",
         "error": "错误"
-      }
+      },
+      "autoReconnect": "自动重连",
+      "autoReconnectHint": "断开后自动拨号；连续失败多次后会关闭并写入错误信息"
     },
     "captcha": {
       "title": "登录验证码",

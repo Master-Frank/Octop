@@ -9,6 +9,7 @@ export interface BridgeConnection {
   status: string;
   last_error: string | null;
   last_seen_at: number | null;
+  auto_reconnect: boolean;
   created_at: number;
   updated_at: number;
   has_password: boolean;
@@ -89,6 +90,12 @@ export const bridgeApi = {
       `/bridge/connections/${connectionId}/disconnect`,
       { method: "POST" },
     ),
+
+  patch: (connectionId: string, body: { auto_reconnect?: boolean }) =>
+    request<BridgeConnection>(`/bridge/connections/${connectionId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
 
   remove: (connectionId: string) =>
     request<void>(`/bridge/connections/${connectionId}`, { method: "DELETE" }),

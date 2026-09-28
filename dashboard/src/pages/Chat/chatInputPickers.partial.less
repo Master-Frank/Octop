@@ -643,17 +643,17 @@
 
 .expertRemoteBadge {
   flex-shrink: 0;
+  max-width: 10em;
   font-size: 11px;
+  font-weight: 600;
   line-height: 16px;
   padding: 0 6px;
   border-radius: 4px;
-  color: var(--fn-color-text-secondary, #64748b);
-  background: color-mix(
-    in srgb,
-    var(--fn-color-text-secondary, #64748b) 14%,
-    transparent
-  );
+  color: #0f766e;
+  background: color-mix(in srgb, #0f766e 16%, transparent);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .expertAgentAvatar {

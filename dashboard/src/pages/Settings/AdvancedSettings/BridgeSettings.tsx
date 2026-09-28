@@ -7,6 +7,7 @@ import {
   Input,
   Popconfirm,
   Spin,
+  Switch,
   Tag,
 } from "antd";
 import { message } from "@/utils/antdMessage";
@@ -412,6 +413,34 @@ export default function BridgeSettingsPanel() {
                 {row.peer_base_url} · {row.peer_username}
               </p>
               {row.notes ? <p className={styles.meta}>{row.notes}</p> : null}
+              <div className={styles.autoReconnectRow}>
+                <div className={styles.autoReconnectText}>
+                  <span>{t("advancedSettings.bridge.autoReconnect")}</span>
+                  <span className={styles.autoReconnectHint}>
+                    {t("advancedSettings.bridge.autoReconnectHint")}
+                  </span>
+                </div>
+                <Switch
+                  checked={row.auto_reconnect !== false}
+                  onChange={async (checked) => {
+                    try {
+                      await bridgeApi.patch(row.connection_id, {
+                        auto_reconnect: checked,
+                      });
+                      await reload();
+                      await refreshAgents({ silent: true, force: true });
+                    } catch (err) {
+                      message.error(
+                        apiErrorMessage(
+                          err,
+                          t("advancedSettings.bridge.loadFailed"),
+                          t,
+                        ),
+                      );
+                    }
+                  }}
+                />
+              </div>
               {row.last_error ? (
                 <p className={styles.metaError}>{row.last_error}</p>
               ) : null}

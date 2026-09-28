@@ -140,6 +140,33 @@ async def disconnect_connection(
     return cast(dict[str, Any], mgr.connection_public(row))
 
 
+class BridgePatchBody(BaseModel):
+    auto_reconnect: bool | None = Field(
+        default=None,
+        description="When true, dial again after unexpected disconnect (default on)",
+    )
+
+
+@router.patch(
+    "/bridge/connections/{connection_id}",
+    summary="Update bridge connection settings",
+)
+async def patch_connection(
+    connection_id: str,
+    body: BridgePatchBody,
+    user: Any = Depends(_require_bridge_admin),
+    server: Any = Depends(get_server),
+) -> dict[str, Any]:
+    mgr = _bridge(server)
+    if body.auto_reconnect is None:
+        row = mgr.get_owned(connection_id, user.id)
+        return cast(dict[str, Any], mgr.connection_public(row))
+    row = await mgr.set_auto_reconnect(
+        connection_id, owner_user_id=user.id, enabled=bool(body.auto_reconnect)
+    )
+    return cast(dict[str, Any], mgr.connection_public(row))
+
+
 @router.delete(
     "/bridge/connections/{connection_id}",
     status_code=204,

@@ -1559,10 +1559,11 @@ def _ensure_thread_conversation_mode_schema(db: DatabasePool) -> None:
 
 
 def _ensure_bridge_connections_schema(db: DatabasePool) -> None:
-    """Fold notes + required unique display_name into unreleased v19 bridge table."""
+    """Fold notes + unique display_name + auto_reconnect into unreleased v19."""
     if not _table_exists(db, "bridge_connections"):
         return
     _ensure_column(db, "bridge_connections", "notes", "TEXT")
+    _ensure_column(db, "bridge_connections", "auto_reconnect", "INTEGER NOT NULL DEFAULT 1")
     # Make every (owner, display_name) unique before creating the index.
     # Empty names are filled from peer username / URL; colliding names get a suffix.
     with db.connect() as conn:

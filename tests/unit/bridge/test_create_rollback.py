@@ -27,6 +27,7 @@ def _row(**overrides: Any) -> BridgeConnectionRow:
         "status": "connecting",
         "last_error": None,
         "last_seen_at": None,
+        "auto_reconnect": True,
         "created_at": 1,
         "updated_at": 1,
     }

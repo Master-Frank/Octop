@@ -1188,7 +1188,8 @@
     },
     "remoteExpert": {
       "banner": "Remote expert · via “{{name}}” bridge",
-      "flag": "Remote"
+      "flag": "Remote",
+      "namedFlag": "Remote·{{name}}"
     },
     "pushToast": {
       "title": "{{name}} sent a reminder",
@@ -3312,7 +3313,9 @@
         "disconnected": "Disconnected",
         "connecting": "Connecting",
         "error": "Error"
-      }
+      },
+      "autoReconnect": "Auto-reconnect",
+      "autoReconnectHint": "Redial after disconnect; turns off after several failures and records the error"
     },
     "captcha": {
       "title": "Login captcha",

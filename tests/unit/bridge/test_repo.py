@@ -31,6 +31,7 @@ def test_bridge_connection_crud(tmp_path: Path) -> None:
     assert row.connection_id == cid
     assert row.display_name == "Cloud"
     assert row.notes == "demo node"
+    assert row.auto_reconnect is True
     assert repo.find_by_display_name(uid, "Cloud") is not None
     assert repo.find_by_display_name(uid, "Other") is None
     assert repo.get_for_owner(cid, uid) is not None
@@ -42,6 +43,9 @@ def test_bridge_connection_crud(tmp_path: Path) -> None:
     assert again is not None
     assert again.status == "connected"
     assert again.last_seen_at is not None
+    repo.set_auto_reconnect(cid, False)
+    disabled = repo.get(cid)
+    assert disabled is not None and disabled.auto_reconnect is False
     assert repo.delete(cid) is True
     assert repo.get(cid) is None
 

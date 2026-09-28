@@ -14,6 +14,7 @@ import websockets
 
 from octop.infra.bridge.crypto import decrypt_payload, encrypt_payload
 from octop.infra.bridge.http_tunnel import decode_body_b64, execute_local_http
+from octop.infra.bridge.icons import rewrite_remote_icon_url
 from octop.infra.bridge.ids import PROTOCOL_VERSION, format_bridge_agent_id
 from octop.infra.bridge.peer_auth import login_peer, normalize_peer_base_url, peer_ws_url
 from octop.infra.bridge.transport import BridgeSession
@@ -24,6 +25,10 @@ from octop.infra.errors import ErrorCode, OctopError
 from octop.infra.utils.ulid import new_ulid
 
 logger = logging.getLogger(__name__)
+
+# Auto-reconnect: backoff after unexpected disconnect; disable after this many failures.
+_AUTO_RECONNECT_MAX_FAILURES = 5
+_AUTO_RECONNECT_BACKOFF_SEC = (2.0, 4.0, 8.0, 16.0, 30.0)
 
 
 def _absolute_peer_url(base_url: str, maybe_path: str | None) -> str | None:
@@ -74,6 +79,9 @@ class BridgeManager:
         self._turn_waiters: dict[str, asyncio.Queue[dict[str, Any]]] = {}
         self._asgi_app: Any | None = None
         self._lock = asyncio.Lock()
+        # Manual disconnect / intentional stop — do not auto-reconnect until connect().
+        self._user_stopped: set[str] = set()
+        self._reconnect_failures: dict[str, int] = {}
 
     def bind_asgi_app(self, app: Any) -> None:
         self._asgi_app = app
@@ -120,6 +128,7 @@ class BridgeManager:
             "status": status,
             "last_error": row.last_error,
             "last_seen_at": row.last_seen_at,
+            "auto_reconnect": bool(row.auto_reconnect),
             "created_at": row.created_at,
             "updated_at": row.updated_at,
             "has_password": bool(row.credential_blob),
@@ -263,35 +272,46 @@ class BridgeManager:
 
     async def connect(self, connection_id: str, *, owner_user_id: int) -> BridgeConnectionRow:
         row = self.get_owned(connection_id, owner_user_id)
+        self._user_stopped.discard(connection_id)
         async with self._lock:
             existing = self._sessions.get(connection_id)
             if existing is not None and not existing.closed:
                 return row
-            self._repo.update_status(connection_id, status="connecting", last_error=None)
-            token = await self._ensure_peer_token(row)
-            task = asyncio.create_task(
-                self._run_outbound_client(connection_id, row.peer_base_url, token),
-                name=f"bridge-out-{connection_id}",
-            )
-            self._client_tasks[connection_id] = task
-        # Wait briefly for hello_ack
+            task = self._client_tasks.get(connection_id)
+            if task is not None and not task.done():
+                # Supervisor already running (reconnect wait) — wait for live session.
+                pass
+            else:
+                self._repo.update_status(connection_id, status="connecting", last_error=None)
+                self._reconnect_failures[connection_id] = 0
+                task = asyncio.create_task(
+                    self._outbound_supervisor(connection_id),
+                    name=f"bridge-out-{connection_id}",
+                )
+                self._client_tasks[connection_id] = task
+        assert task is not None
+        # Wait briefly for hello_ack / live session
         for _ in range(50):
             sess = self._sessions.get(connection_id)
             if sess is not None and not sess.closed:
                 self._repo.update_status(
                     connection_id, status="connected", last_error=None, touch_seen=True
                 )
+                self._reconnect_failures[connection_id] = 0
                 return self._repo.get(connection_id) or row
             if task.done():
                 exc = task.exception() if not task.cancelled() else None
                 msg = str(exc) if exc else "bridge connect failed"
-                self._repo.update_status(connection_id, status="error", last_error=msg[:500])
+                latest = self._repo.get(connection_id)
+                if latest is not None and latest.status != "error":
+                    self._repo.update_status(connection_id, status="error", last_error=msg[:500])
                 raise OctopError(ErrorCode.BRIDGE_PEER_UNREACHABLE, msg)
             await asyncio.sleep(0.1)
         self._repo.update_status(connection_id, status="error", last_error="bridge connect timeout")
         raise OctopError(ErrorCode.BRIDGE_PEER_UNREACHABLE, "bridge connect timeout")
 
     async def disconnect(self, connection_id: str) -> None:
+        self._user_stopped.add(connection_id)
         task = self._client_tasks.pop(connection_id, None)
         if task is not None:
             task.cancel()
@@ -301,7 +321,120 @@ class BridgeManager:
         if sess is not None:
             await sess.close()
         if self._repo.get(connection_id) is not None:
-            self._repo.update_status(connection_id, status="disconnected")
+            self._repo.update_status(connection_id, status="disconnected", last_error=None)
+
+    async def set_auto_reconnect(
+        self, connection_id: str, *, owner_user_id: int, enabled: bool
+    ) -> BridgeConnectionRow:
+        row = self.get_owned(connection_id, owner_user_id)
+        self._repo.set_auto_reconnect(connection_id, enabled)
+        if enabled:
+            self._user_stopped.discard(connection_id)
+            self._reconnect_failures[connection_id] = 0
+            live = self._sessions.get(connection_id)
+            if live is None or live.closed:
+                return await self.connect(connection_id, owner_user_id=owner_user_id)
+        return self._repo.get(connection_id) or row
+
+    async def resume_auto_connections(self) -> None:
+        """Boot-time: dial every connection with auto_reconnect enabled."""
+        for row in self._repo.list_auto_reconnect():
+            if row.connection_id in self._user_stopped:
+                continue
+            live = self._sessions.get(row.connection_id)
+            if live is not None and not live.closed:
+                continue
+            try:
+                await self.connect(row.connection_id, owner_user_id=row.owner_user_id)
+            except Exception as exc:
+                logger.warning(
+                    "bridge auto-resume failed connection=%s: %s",
+                    row.connection_id,
+                    exc,
+                )
+
+    async def _outbound_supervisor(self, connection_id: str) -> None:
+        """Keep an outbound Bridge WS alive while auto_reconnect is on."""
+        while True:
+            if connection_id in self._user_stopped:
+                return
+            row = self._repo.get(connection_id)
+            if row is None:
+                return
+            try:
+                token = await self._ensure_peer_token(row)
+                self._repo.update_status(connection_id, status="connecting", last_error=None)
+                await self._run_outbound_client(connection_id, row.peer_base_url, token)
+                # Clean close (peer hung up) — reset failure streak.
+                self._reconnect_failures[connection_id] = 0
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                detail = str(exc)
+                low = detail.lower()
+                if "403" in detail or "404" in detail or "rejected websocket" in low:
+                    detail = (
+                        f"{detail}; peer may not support Bridge yet "
+                        "(needs Octop with /api/bridge/ws)"
+                    )
+                failures = self._reconnect_failures.get(connection_id, 0) + 1
+                self._reconnect_failures[connection_id] = failures
+                if self._repo.get(connection_id) is not None:
+                    self._repo.update_status(
+                        connection_id, status="disconnected", last_error=detail[:500]
+                    )
+                row = self._repo.get(connection_id)
+                if row is None or connection_id in self._user_stopped:
+                    return
+                if not row.auto_reconnect:
+                    return
+                if failures >= _AUTO_RECONNECT_MAX_FAILURES:
+                    msg = (
+                        f"Auto-reconnect disabled after {failures} failed attempts. "
+                        f"Last error: {detail[:300]}"
+                    )
+                    self._repo.set_auto_reconnect(connection_id, False)
+                    self._repo.update_status(connection_id, status="error", last_error=msg[:500])
+                    self._user_stopped.add(connection_id)
+                    logger.warning(
+                        "bridge auto-reconnect disabled connection=%s after %s failures",
+                        connection_id,
+                        failures,
+                    )
+                    return
+                delay = _AUTO_RECONNECT_BACKOFF_SEC[
+                    min(failures - 1, len(_AUTO_RECONNECT_BACKOFF_SEC) - 1)
+                ]
+                logger.info(
+                    "bridge reconnecting connection=%s in %.0fs (attempt %s)",
+                    connection_id,
+                    delay,
+                    failures,
+                )
+                try:
+                    await asyncio.sleep(delay)
+                except asyncio.CancelledError:
+                    raise
+                continue
+
+            # Session ended without exception — reconnect if still enabled.
+            if connection_id in self._user_stopped:
+                return
+            row = self._repo.get(connection_id)
+            if row is None or not row.auto_reconnect:
+                if self._repo.get(connection_id) is not None:
+                    self._repo.update_status(connection_id, status="disconnected")
+                return
+            delay = _AUTO_RECONNECT_BACKOFF_SEC[0]
+            logger.info(
+                "bridge session ended; reconnecting connection=%s in %.0fs",
+                connection_id,
+                delay,
+            )
+            try:
+                await asyncio.sleep(delay)
+            except asyncio.CancelledError:
+                raise
 
     async def _ensure_peer_token(self, row: BridgeConnectionRow) -> str:
         from octop.infra.db.repos._base import now_ts
@@ -382,6 +515,11 @@ class BridgeManager:
                     on_turn_frame=lambda p: self._handle_inbound_turn(connection_id, p),
                 )
                 await self._register_session(connection_id, session)
+                if self._repo.get(connection_id) is not None:
+                    self._repo.update_status(
+                        connection_id, status="connected", last_error=None, touch_seen=True
+                    )
+                    self._reconnect_failures[connection_id] = 0
                 async for raw in ws:
                     text = raw if isinstance(raw, str) else raw.decode("utf-8", errors="replace")
                     await session.handle_message(text)
@@ -389,17 +527,6 @@ class BridgeManager:
             raise
         except Exception as exc:
             logger.warning("bridge outbound closed connection=%s: %s", connection_id, exc)
-            detail = str(exc)
-            # Peer Octop without Bridge returns HTTP 403/404 on /api/bridge/ws.
-            low = detail.lower()
-            if "403" in detail or "404" in detail or "rejected websocket" in low:
-                detail = (
-                    f"{detail}; peer may not support Bridge yet (needs Octop with /api/bridge/ws)"
-                )
-            if self._repo.get(connection_id) is not None:
-                self._repo.update_status(
-                    connection_id, status="disconnected", last_error=detail[:500]
-                )
             raise
         finally:
             await self._unregister_session(connection_id)
@@ -611,11 +738,12 @@ class BridgeManager:
             mapped["bridge"] = True
             # Shadow experts are chat-ready while the bridge link is live.
             mapped["state"] = "running"
-            # Serve icons via local proxy so the browser never hits the peer.
-            if str(mapped.get("icon_url") or mapped.get("icon") or "").strip():
-                from octop.infra.agents.experts.avatar import agent_avatar_api_path
-
-                mapped["icon_url"] = agent_avatar_api_path(mapped["id"])
+            # Keep bundled /experts/avatars and CDN URLs; proxy uploaded avatars.
+            mapped["icon_url"] = rewrite_remote_icon_url(
+                str(mapped.get("icon_url") or mapped.get("icon") or "").strip() or None,
+                remote_agent_id=remote_id,
+                bridge_agent_id=str(mapped["id"]),
+            )
             out.append(mapped)
         return out
 

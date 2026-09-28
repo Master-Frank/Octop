@@ -114,8 +114,21 @@ export default function ExpertPickerPopover({
                   </span>
                 )}
                 {agent.bridge && (
-                  <span className={styles.expertRemoteBadge}>
-                    {t("chat.expertRemoteBadge")}
+                  <span
+                    className={styles.expertRemoteBadge}
+                    title={
+                      agent.bridge_connection_name
+                        ? t("chat.remoteExpert.banner", {
+                            name: agent.bridge_connection_name,
+                          })
+                        : undefined
+                    }
+                  >
+                    {agent.bridge_connection_name
+                      ? t("chat.remoteExpert.namedFlag", {
+                          name: agent.bridge_connection_name,
+                        })
+                      : t("chat.expertRemoteBadge")}
                   </span>
                 )}
               </span>

@@ -21,11 +21,14 @@ export default function RemoteExpertHint({
   const { t } = useTranslation();
   const visible = show ?? Boolean(agent?.bridge);
   if (!visible) return null;
-  const name = connectionName ?? agent?.bridge_connection_name?.trim() ?? "";
+  const name =
+    (connectionName ?? agent?.bridge_connection_name ?? "").trim() || "";
   const tip = name
     ? t("chat.remoteExpert.banner", { name })
     : t("chat.remoteExpert.flag");
-  const label = t("chat.remoteExpert.flag");
+  const label = name
+    ? t("chat.remoteExpert.namedFlag", { name })
+    : t("chat.remoteExpert.flag");
   return (
     <Tooltip title={tip} mouseEnterDelay={0.35}>
       <span
