@@ -747,6 +747,95 @@ class BridgeManager:
             out.append(mapped)
         return out
 
+    async def tunnel_json_get(
+        self,
+        connection_id: str,
+        *,
+        owner_user_id: int,
+        path: str,
+        query: str = "",
+    ) -> Any:
+        """GET a JSON body from the peer via the HTTP tunnel."""
+        resp = await self.tunnel_http(
+            connection_id=connection_id,
+            owner_user_id=owner_user_id,
+            method="GET",
+            path=path,
+            query=query,
+        )
+        if resp.status_code >= 400:
+            raise OctopError(
+                ErrorCode.BRIDGE_TUNNEL_FAILED,
+                f"peer {path} HTTP {resp.status_code}: {resp.text[:200]}",
+            )
+        try:
+            return resp.json()
+        except Exception as exc:
+            raise OctopError(
+                ErrorCode.BRIDGE_TUNNEL_FAILED,
+                f"peer {path} returned invalid JSON",
+            ) from exc
+
+    async def list_remote_resolved_models(
+        self, connection_id: str, *, owner_user_id: int
+    ) -> list[dict[str, Any]]:
+        data = await self.tunnel_json_get(
+            connection_id,
+            owner_user_id=owner_user_id,
+            path="/api/providers/resolved",
+        )
+        if not isinstance(data, list):
+            raise OctopError(
+                ErrorCode.BRIDGE_TUNNEL_FAILED,
+                "peer providers/resolved payload invalid",
+            )
+        return [item for item in data if isinstance(item, dict)]
+
+    async def get_remote_active_model(
+        self, connection_id: str, *, owner_user_id: int
+    ) -> dict[str, Any]:
+        data = await self.tunnel_json_get(
+            connection_id,
+            owner_user_id=owner_user_id,
+            path="/api/providers/active-model",
+        )
+        if not isinstance(data, dict):
+            raise OctopError(
+                ErrorCode.BRIDGE_TUNNEL_FAILED,
+                "peer providers/active-model payload invalid",
+            )
+        return data
+
+    async def list_remote_knowledge_bases(
+        self, connection_id: str, *, owner_user_id: int
+    ) -> list[dict[str, Any]]:
+        data = await self.tunnel_json_get(
+            connection_id,
+            owner_user_id=owner_user_id,
+            path="/api/knowledge-bases",
+        )
+        if not isinstance(data, list):
+            raise OctopError(
+                ErrorCode.BRIDGE_TUNNEL_FAILED,
+                "peer knowledge-bases payload invalid",
+            )
+        return [item for item in data if isinstance(item, dict)]
+
+    async def get_remote_knowledge_capability(
+        self, connection_id: str, *, owner_user_id: int
+    ) -> dict[str, Any]:
+        data = await self.tunnel_json_get(
+            connection_id,
+            owner_user_id=owner_user_id,
+            path="/api/knowledge-bases/capability",
+        )
+        if not isinstance(data, dict):
+            raise OctopError(
+                ErrorCode.BRIDGE_TUNNEL_FAILED,
+                "peer knowledge-bases/capability payload invalid",
+            )
+        return data
+
     # -- chat turn relay -----------------------------------------------------
 
     async def open_turn_waiter(self, request_id: str) -> asyncio.Queue[dict[str, Any]]:

@@ -59,7 +59,7 @@
 
 添加连接前可先 `POST /api/bridge/probe`：用填写的 `peer_base_url` + 用户名/密码对端 HTTP 登录，再拉 `GET /api/agents?scope=mine`，返回专家摘要列表（`agent_id` / `name` / `description` / 绝对 `icon_url` 等）。**不**写入 `bridge_connections`，**不**建立 Bridge WS。Dashboard 添加抽屉里的「探测」按钮走此接口。
 
-「保存并连接」仅在登录 + Bridge WS `hello_ack` 成功后落库；失败回滚。管理 API 需 `admin_console`。入站隧道仅允许 agent 相关 path；入站 hello 不得抢占他人 `connection_id`。
+「保存并连接」仅在登录 + Bridge WS `hello_ack` 成功后落库；失败回滚。管理 API 需 `admin_console`。入站隧道允许 agent 相关 path，以及只读的 `GET /api/providers/resolved`、`GET /api/providers/active-model`、`GET /api/knowledge-bases`、`GET /api/knowledge-bases/capability`（远端聊天 composer）；入站 hello 不得抢占他人 `connection_id`。
 
 
 依赖：`api` → `infra/bridge` → 现有 `infra`（对端登录、对端执行 agents/history/upload）。  

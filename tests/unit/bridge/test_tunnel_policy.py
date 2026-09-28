@@ -19,6 +19,20 @@ def test_allows_agent_resource_paths() -> None:
     assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/history/versions")
 
 
+def test_allows_composer_readonly_paths() -> None:
+    assert is_tunnel_path_allowed("GET", "/api/providers/resolved")
+    assert is_tunnel_path_allowed("GET", "/api/providers/active-model")
+    assert is_tunnel_path_allowed("GET", "/api/knowledge-bases")
+    assert is_tunnel_path_allowed("GET", "/api/knowledge-bases/capability")
+    assert is_tunnel_path_allowed("GET", "/api/agents/01ABC/subagents")
+    assert not is_tunnel_path_allowed("POST", "/api/providers/resolved")
+    assert not is_tunnel_path_allowed("PUT", "/api/providers/active-model")
+    assert not is_tunnel_path_allowed("POST", "/api/knowledge-bases")
+    assert not is_tunnel_path_allowed("GET", "/api/knowledge-bases/kb1")
+    assert not is_tunnel_path_allowed("GET", "/api/knowledge-bases/kb1/documents")
+    assert not is_tunnel_path_allowed("GET", "/api/providers")
+
+
 def test_denies_management_and_auth_paths() -> None:
     assert not is_tunnel_path_allowed("GET", "/api/users")
     assert not is_tunnel_path_allowed("POST", "/api/auth/login")

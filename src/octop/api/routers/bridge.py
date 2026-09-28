@@ -195,6 +195,70 @@ async def list_remote_agents(
     return [cast(dict[str, Any], item) for item in agents]
 
 
+@router.get(
+    "/bridge/connections/{connection_id}/providers/resolved",
+    summary="List peer resolved models via bridge tunnel",
+)
+async def list_remote_resolved_models(
+    connection_id: str,
+    user: Any = Depends(_require_bridge_admin),
+    server: Any = Depends(get_server),
+) -> list[dict[str, Any]]:
+    """Read-only: peer ``GET /api/providers/resolved`` for remote chat model picker."""
+    mgr = _bridge(server)
+    models = await mgr.list_remote_resolved_models(connection_id, owner_user_id=user.id)
+    return [cast(dict[str, Any], item) for item in models]
+
+
+@router.get(
+    "/bridge/connections/{connection_id}/providers/active-model",
+    summary="Get peer active model via bridge tunnel",
+)
+async def get_remote_active_model(
+    connection_id: str,
+    user: Any = Depends(_require_bridge_admin),
+    server: Any = Depends(get_server),
+) -> dict[str, Any]:
+    """Read-only: peer ``GET /api/providers/active-model``."""
+    mgr = _bridge(server)
+    return cast(
+        dict[str, Any],
+        await mgr.get_remote_active_model(connection_id, owner_user_id=user.id),
+    )
+
+
+@router.get(
+    "/bridge/connections/{connection_id}/knowledge-bases",
+    summary="List peer knowledge bases via bridge tunnel",
+)
+async def list_remote_knowledge_bases(
+    connection_id: str,
+    user: Any = Depends(_require_bridge_admin),
+    server: Any = Depends(get_server),
+) -> list[dict[str, Any]]:
+    """Read-only: peer ``GET /api/knowledge-bases`` for remote chat KB picker."""
+    mgr = _bridge(server)
+    bases = await mgr.list_remote_knowledge_bases(connection_id, owner_user_id=user.id)
+    return [cast(dict[str, Any], item) for item in bases]
+
+
+@router.get(
+    "/bridge/connections/{connection_id}/knowledge-bases/capability",
+    summary="Get peer knowledge capability via bridge tunnel",
+)
+async def get_remote_knowledge_capability(
+    connection_id: str,
+    user: Any = Depends(_require_bridge_admin),
+    server: Any = Depends(get_server),
+) -> dict[str, Any]:
+    """Read-only: peer ``GET /api/knowledge-bases/capability``."""
+    mgr = _bridge(server)
+    return cast(
+        dict[str, Any],
+        await mgr.get_remote_knowledge_capability(connection_id, owner_user_id=user.id),
+    )
+
+
 @router.websocket("/bridge/ws")
 async def bridge_inbound_ws(
     websocket: WebSocket,

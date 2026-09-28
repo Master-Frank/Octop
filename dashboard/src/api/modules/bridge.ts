@@ -1,4 +1,6 @@
 import { request } from "../request";
+import type { ResolvedModel } from "../types";
+import type { KnowledgeBase, KnowledgeCapability } from "./knowledgeBases";
 
 export interface BridgeConnection {
   connection_id: string;
@@ -102,4 +104,24 @@ export const bridgeApi = {
 
   listAgents: (connectionId: string) =>
     request<BridgeRemoteAgent[]>(`/bridge/connections/${connectionId}/agents`),
+
+  listResolvedModels: (connectionId: string) =>
+    request<ResolvedModel[]>(
+      `/bridge/connections/${connectionId}/providers/resolved`,
+    ),
+
+  getActiveModel: (connectionId: string) =>
+    request<{ provider_name: string; model: string }>(
+      `/bridge/connections/${connectionId}/providers/active-model`,
+    ),
+
+  listKnowledgeBases: (connectionId: string) =>
+    request<KnowledgeBase[]>(
+      `/bridge/connections/${connectionId}/knowledge-bases`,
+    ),
+
+  getKnowledgeCapability: (connectionId: string) =>
+    request<KnowledgeCapability>(
+      `/bridge/connections/${connectionId}/knowledge-bases/capability`,
+    ),
 };
