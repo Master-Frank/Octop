@@ -115,7 +115,7 @@ export function ProviderConfigModal({
     [],
   );
   const [ollamaModelsDir, setOllamaModelsDir] = useState("");
-  const [ollamaServiceEnabled, setOllamaServiceEnabled] = useState(false);
+  const [ollamaServiceLoaded, setOllamaServiceLoaded] = useState(false);
   const [savingModelsDir, setSavingModelsDir] = useState(false);
   const ollamaPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const ollamaNotifiedRef = useRef<Set<string>>(new Set());
@@ -267,14 +267,17 @@ export function ProviderConfigModal({
     void fetchOllamaModels();
     downloadForm.resetFields();
     ollamaNotifiedRef.current.clear();
+    setOllamaServiceLoaded(false);
 
     void ollamaModelApi
       .getService()
       .then((st) => {
-        setOllamaServiceEnabled(st.enabled);
         setOllamaModelsDir(st.models_dir || "");
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        setOllamaServiceLoaded(true);
+      });
 
     void request<OllamaDownloadTaskResponse[]>("/ollama-models/download-status")
       .then((tasks) => {
@@ -297,13 +300,10 @@ export function ProviderConfigModal({
   ]);
 
   const handleSaveOllamaModelsDir = async () => {
+    if (!ollamaServiceLoaded) return;
     setSavingModelsDir(true);
     try {
-      const st = await ollamaModelApi.setService(
-        ollamaServiceEnabled,
-        ollamaModelsDir.trim(),
-      );
-      setOllamaServiceEnabled(st.enabled);
+      const st = await ollamaModelApi.setModelsDir(ollamaModelsDir.trim());
       setOllamaModelsDir(st.models_dir || "");
       message.success(t("models.ollamaModelsDirSaved"));
       await fetchOllamaModels();
@@ -1155,7 +1155,8 @@ export function ProviderConfigModal({
                 placeholder={t("models.ollamaModelsDirPlaceholder")}
               />
               <Button
-                loading={savingModelsDir}
+                loading={savingModelsDir || !ollamaServiceLoaded}
+                disabled={!ollamaServiceLoaded}
                 onClick={() => void handleSaveOllamaModelsDir()}
               >
                 {t("models.ollamaModelsDirApply")}

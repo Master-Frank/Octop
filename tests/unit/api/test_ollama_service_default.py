@@ -67,32 +67,66 @@ async def test_list_uses_models_dir_when_service_disabled(
     )
     result = await ollama_models.list_ollama_models(server=server, _=None)
     assert [m.name for m in result] == ["qwen2.5:7b"]
+    assert result[0].size == 0
 
 
 @pytest.mark.asyncio
 async def test_put_service_rejects_relative_models_dir() -> None:
     server = _server({})
-    body = ollama_models.OllamaServiceBody(enabled=False, models_dir="relative/models")
+    body = ollama_models.OllamaServiceBody(models_dir="relative/models")
     with pytest.raises(HTTPException) as exc_info:
         await ollama_models.put_ollama_service(body=body, server=server, _=None)
     assert exc_info.value.status_code == 400
 
 
-@pytest.mark.asyncio
-async def test_put_service_stores_models_dir(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def _patch_ollama_lifecycle(monkeypatch: pytest.MonkeyPatch) -> tuple[MagicMock, MagicMock]:
     monkeypatch.delenv("OLLAMA_MODELS", raising=False)
     from octop.infra.utils import ollama_manager as om
 
     monkeypatch.setattr(om, "_original_ollama_models", om._UNSET)
     monkeypatch.setattr(om, "_applied_models_dir", None)
-    monkeypatch.setattr("octop.infra.utils.ollama_manager.stop_ollama_service", lambda: True)
-    monkeypatch.setattr("octop.infra.utils.ollama_manager.start_ollama_service", lambda: None)
+    stop = MagicMock(return_value=True)
+    start = MagicMock()
+    monkeypatch.setattr("octop.infra.utils.ollama_manager.stop_ollama_service", stop)
+    monkeypatch.setattr("octop.infra.utils.ollama_manager.start_ollama_service", start)
     monkeypatch.setattr("octop.infra.utils.ollama_manager.is_ollama_reachable", lambda: False)
+    return stop, start
+
+
+@pytest.mark.asyncio
+async def test_put_models_dir_without_enabled_does_not_stop(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stop, start = _patch_ollama_lifecycle(monkeypatch)
     server = _server({})
-    body = ollama_models.OllamaServiceBody(enabled=False, models_dir=str(tmp_path))
+    body = ollama_models.OllamaServiceBody(models_dir=str(tmp_path))
     status = await ollama_models.put_ollama_service(body=body, server=server, _=None)
     server.services.settings_repo.set.assert_any_call(SETTINGS_KEY_MODELS_DIR, str(tmp_path))
     assert status.models_dir == str(tmp_path)
     assert status.enabled is False
+    stop.assert_not_called()
+    start.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_put_models_dir_restarts_when_service_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    stop, start = _patch_ollama_lifecycle(monkeypatch)
+    server = _server({ollama_models._SETTINGS_KEY_OLLAMA_SERVICE: "true"})
+    body = ollama_models.OllamaServiceBody(models_dir=str(tmp_path))
+    status = await ollama_models.put_ollama_service(body=body, server=server, _=None)
+    assert status.enabled is True
+    stop.assert_called_once()
+    start.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_put_enabled_false_still_stops(monkeypatch: pytest.MonkeyPatch) -> None:
+    stop, start = _patch_ollama_lifecycle(monkeypatch)
+    server = _server({ollama_models._SETTINGS_KEY_OLLAMA_SERVICE: "true"})
+    body = ollama_models.OllamaServiceBody(enabled=False)
+    status = await ollama_models.put_ollama_service(body=body, server=server, _=None)
+    assert status.enabled is False
+    stop.assert_called_once()
+    start.assert_not_called()

@@ -54,6 +54,7 @@ def test_list_models_from_dir_reads_manifests(tmp_path: Path) -> None:
 
     names = {m.name for m in list_models_from_dir(str(tmp_path))}
     assert names == {"llama3:latest", "qwen2.5:7b", "hf.co/org/mod:latest"}
+    assert all(m.size == 0 for m in list_models_from_dir(str(tmp_path)))
 
 
 def test_resolve_root_accepts_ollama_home(tmp_path: Path) -> None:

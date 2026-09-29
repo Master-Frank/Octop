@@ -32,13 +32,15 @@ export const ollamaModelApi = {
 
   getService: () => request<OllamaServiceStatus>("/ollama-models/service"),
 
-  setService: (enabled: boolean, modelsDir?: string) =>
+  setService: (enabled: boolean) =>
     request<OllamaServiceStatus>("/ollama-models/service", {
       method: "PUT",
-      body: JSON.stringify(
-        modelsDir === undefined
-          ? { enabled }
-          : { enabled, models_dir: modelsDir },
-      ),
+      body: JSON.stringify({ enabled }),
+    }),
+
+  setModelsDir: (modelsDir: string) =>
+    request<OllamaServiceStatus>("/ollama-models/service", {
+      method: "PUT",
+      body: JSON.stringify({ models_dir: modelsDir }),
     }),
 };

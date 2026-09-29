@@ -267,7 +267,10 @@ _SETTINGS_KEY_OLLAMA_SERVICE = "ollama_service_enabled"
 
 
 class OllamaServiceBody(BaseModel):
-    enabled: bool = Field(..., description="Whether Octop should keep the Ollama service running")
+    enabled: bool | None = Field(
+        default=None,
+        description="Whether Octop should keep the Ollama service running. Omit to leave unchanged.",
+    )
     models_dir: str | None = Field(
         default=None,
         description=(
@@ -328,7 +331,11 @@ async def get_ollama_service(
 @router.put(
     "/service",
     response_model=OllamaServiceStatus,
-    summary="Enable/disable Ollama local service",
+    summary="Update Ollama local service",
+    description=(
+        "Toggle the managed daemon and/or set the models directory. "
+        "Omit enabled to change models_dir without stopping a running service."
+    ),
 )
 async def put_ollama_service(
     body: OllamaServiceBody,
@@ -356,11 +363,23 @@ async def put_ollama_service(
 
     apply_models_dir(_ollama_models_dir(server) or None)
 
-    server.services.settings_repo.set(
-        _SETTINGS_KEY_OLLAMA_SERVICE,
-        "true" if body.enabled else "false",
-    )
-    if body.enabled:
+    enabled = _ollama_service_enabled(server)
+    if body.enabled is not None:
+        enabled = body.enabled
+        server.services.settings_repo.set(
+            _SETTINGS_KEY_OLLAMA_SERVICE,
+            "true" if enabled else "false",
+        )
+
+    if body.enabled is None:
+        # Directory-only update: restart only if the daemon is already managed on.
+        if models_dir_changed and enabled:
+            stop_ollama_service()
+            try:
+                start_ollama_service()
+            except Exception as exc:
+                raise HTTPException(status_code=503, detail=str(exc)) from exc
+    elif enabled:
         if models_dir_changed:
             stop_ollama_service()
         try:
@@ -371,6 +390,6 @@ async def put_ollama_service(
         stop_ollama_service()
     return _service_status(
         server,
-        enabled=body.enabled,
+        enabled=enabled,
         running=is_ollama_reachable(),
     )

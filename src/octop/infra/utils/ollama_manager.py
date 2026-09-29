@@ -185,11 +185,8 @@ def list_models_from_dir(path: str | None) -> list[OllamaModelInfo]:
         name = _name_from_manifest_rel(rel)
         if not name or name in found:
             continue
-        try:
-            size = manifest.stat().st_size
-        except OSError:
-            size = 0
-        found[name] = OllamaModelInfo(name=name, size=size)
+        # Manifest files are tiny JSON; do not report their size as the model size.
+        found[name] = OllamaModelInfo(name=name, size=0)
     return list(found.values())
 
 
