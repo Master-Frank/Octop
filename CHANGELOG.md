@@ -8,6 +8,7 @@
 
 ### 修复
 - 暗色主题下知识库 Markdown 预览白底白字导致正文不可见（补上未定义的 `--fn-bg-container` 主题变量，Fixes #1215）。
+- httpx 0.28 将 ``NO_PROXY`` 中的 CIDR（如 ``192.168.0.0/16``）当成精确 IP，内网地址误走代理；同时兼容 Windows 分号分隔、IPv6 CIDR，以及 macOS/Windows 系统代理下的 loopback 直连（Fixes #1347）。
 
 ## [1.0.2b3] - 2026-09-26
 
