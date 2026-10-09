@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 import pytest
@@ -20,6 +21,56 @@ def test_cli_install_specs_registered() -> None:
     assert wecom.binary == "wecom-cli"
     assert wecom.install_command == "npm install -g @wecom/cli"
     assert cli_install.get_cli_install_spec("tencent-ima") is None
+
+
+def test_obsidian_cli_install_links_bundled_binary(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    home = tmp_path / "home"
+    source = tmp_path / "Obsidian.app" / "Contents" / "MacOS" / "obsidian-cli"
+    source.parent.mkdir(parents=True)
+    source.write_text("obsidian", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("PATH", os.environ.get("PATH", ""))
+    monkeypatch.setattr(cli_install, "obsidian_bundle_candidates", lambda: [str(source)])
+    monkeypatch.setattr(cli_install, "_prefix_writable", lambda _prefix: False)
+    monkeypatch.setattr(cli_install, "_read_version", lambda _path: "1.12.7")
+    dest_name = "obsidian.exe" if os.name == "nt" else "obsidian"
+    dest = home / ".local" / "bin" / dest_name
+
+    def _which(name: str) -> str | None:
+        if name == "obsidian" and dest.is_file():
+            return str(dest)
+        return None
+
+    monkeypatch.setattr(cli_install.shutil, "which", _which)
+    status = cli_install.cli_install_status("obsidian-cli")
+    assert status["installed"] is False
+    assert status["install_command"]
+    assert "npm" not in status["install_command"]
+    assert str(source) in status["install_command"]
+
+    out = cli_install.install_connector_cli("obsidian-cli")
+    assert out["ok"] is True
+    assert out["already_installed"] is False
+    assert out["installed"] is True
+    assert out["version"] == "1.12.7"
+    assert dest.is_file()
+
+
+def test_obsidian_cli_install_fails_without_app(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_install.shutil, "which", lambda _name: None)
+    monkeypatch.setattr(cli_install, "obsidian_bundle_candidates", lambda: [])
+    monkeypatch.setattr(cli_install, "_prefix_writable", lambda _prefix: False)
+    status = cli_install.cli_install_status("obsidian-cli")
+    assert status["installed"] is False
+    assert status["install_command"]
+    out = cli_install.install_connector_cli("obsidian-cli")
+    assert out["ok"] is False
+    assert out["install_command"]
+    assert "npm install" not in out["error"]
+    assert out["install_command"] in out["error"]
 
 
 def test_install_when_already_present(monkeypatch: pytest.MonkeyPatch) -> None:
