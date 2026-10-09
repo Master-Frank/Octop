@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -191,7 +192,10 @@ def test_middleware_rewrites_plan_write_onto_workspace(tmp_path: Path) -> None:
         return_value="thr_1",
     ):
         mw.wrap_tool_call(_request("write_file", {"file_path": "plans/foo.md"}), handler)
-    assert seen == [f"{ws.as_posix()}/plans/foo.md"]
+    # Windows workspace dirs are drive paths, which write_file rejects, so the
+    # relative plan path is left for the workspace-scoped backend.
+    expected = "plans/foo.md" if os.name == "nt" else f"{ws.as_posix()}/plans/foo.md"
+    assert seen == [expected]
 
 
 def test_middleware_records_successful_write(tmp_path: Path) -> None:

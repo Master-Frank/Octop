@@ -57,13 +57,17 @@ def test_harness_allowlist_accepts_workspace_plan_after_octop_patch() -> None:
 
 
 def test_workspace_plan_path_rewrites_container_root(tmp_path: Path) -> None:
-    ws = tmp_path / ".octop" / "agents" / "ABC123"
-    expected = f"{ws.as_posix()}/plans/foo.md"
+    ws = "/data/.octop/agents/ABC123"
+    expected = f"{ws}/plans/foo.md"
     assert workspace_plan_path("plans/foo.md", ws) == expected
     assert workspace_plan_path("/plans/foo.md", ws) == expected
     assert workspace_plan_path(expected, ws) == expected
     assert workspace_plan_path("SOUL.md", ws) == "SOUL.md"
     assert workspace_plan_path("plans/foo.md", "D:/octop/agents/ABC") == "plans/foo.md"
+    # Drive-letter workspaces stay relative: write_file rejects C:/... paths.
+    host = tmp_path / ".octop" / "agents" / "ABC123"
+    host_expected = "plans/foo.md" if os.name == "nt" else f"{host.as_posix()}/plans/foo.md"
+    assert workspace_plan_path("plans/foo.md", host) == host_expected
 
 
 posix_only = pytest.mark.skipif(
