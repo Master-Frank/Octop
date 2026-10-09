@@ -73,6 +73,85 @@ def test_obsidian_cli_install_fails_without_app(monkeypatch: pytest.MonkeyPatch)
     assert out["install_command"] in out["error"]
 
 
+def test_linux_obsidian_install_copies_into_user_bin(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setattr(cli_install.sys, "platform", "linux")
+    monkeypatch.setattr(cli_install.os, "name", "posix")
+    monkeypatch.setattr(cli_install, "_prefix_writable", lambda _prefix: True)
+    source = "/opt/Obsidian/obsidian-cli"
+    dest = cli_install._obsidian_install_destination(source)
+    assert dest == os.path.join(str(tmp_path), ".local", "bin", "obsidian")
+    command = cli_install.obsidian_install_command(source, dest)
+    assert "cp " in command
+    assert "chmod 755" in command
+    assert "ln -s" not in command
+    assert source in command
+
+
+def test_macos_obsidian_install_symlinks_system_bin(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_install.sys, "platform", "darwin")
+    monkeypatch.setattr(cli_install.os, "name", "posix")
+    monkeypatch.setattr(cli_install.os.path, "isdir", lambda path: path == "/usr/local/bin")
+    monkeypatch.setattr(cli_install, "_prefix_writable", lambda _prefix: True)
+    source = "/Applications/Obsidian.app/Contents/MacOS/obsidian-cli"
+    dest = cli_install._obsidian_install_destination(source)
+    assert dest == os.path.join("/usr/local/bin", "obsidian")
+    command = cli_install.obsidian_install_command(source, dest)
+    assert command.startswith("ln -sfn ")
+    assert source in command
+
+
+def test_windows_obsidian_com_stays_beside_app(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Any
+) -> None:
+    home = tmp_path / "home"
+    source = tmp_path / "Obsidian" / "Obsidian.com"
+    source.parent.mkdir()
+    source.write_text("redirector", encoding="utf-8")
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.setattr(cli_install.os, "name", "nt")
+    monkeypatch.setattr(cli_install.sys, "platform", "win32")
+    monkeypatch.setattr(cli_install, "obsidian_bundle_candidates", lambda: [str(source)])
+    monkeypatch.setattr(cli_install, "_read_version", lambda _path: "1.12.7")
+
+    def _which(name: str) -> str | None:
+        if name != "obsidian":
+            return None
+        for part in os.environ.get("PATH", "").split(os.pathsep):
+            candidate = os.path.join(part, "Obsidian.com")
+            if os.path.isfile(candidate):
+                return candidate
+        return None
+
+    monkeypatch.setattr(cli_install.shutil, "which", _which)
+    out = cli_install.install_connector_cli("obsidian-cli")
+    assert out["ok"] is True
+    assert out["installed"] is True
+    assert out["binary_path"] == str(source)
+    assert out["version"] == "1.12.7"
+    assert "copy /Y" not in out["install_command"]
+    assert str(source.parent) in out["install_command"]
+    assert not (home / ".local" / "bin" / "obsidian.exe").exists()
+    assert not (home / ".local" / "bin" / "Obsidian.com").exists()
+
+
+def test_windows_bundle_candidates_use_redirector(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(cli_install.os, "name", "nt")
+    monkeypatch.setattr(cli_install.sys, "platform", "win32")
+    monkeypatch.setenv("LOCALAPPDATA", r"C:\Users\a\AppData\Local")
+    monkeypatch.setenv("PROGRAMFILES", r"C:\Program Files")
+    paths = cli_install.obsidian_bundle_candidates()
+    assert paths[0] == os.path.join(r"C:\Users\a\AppData\Local", "Obsidian", "Obsidian.com")
+    assert os.path.join(r"C:\Program Files", "Obsidian", "obsidian-cli.exe") in paths
+    assert all(os.path.basename(path).lower() != "obsidian.exe" for path in paths)
+
+
 def test_install_when_already_present(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(cli_install.shutil, "which", lambda name: fake_bin_path(name))
     monkeypatch.setattr(cli_install, "_read_version", lambda _path: "1.2.3")

@@ -461,7 +461,9 @@ async def test_catalog_weknora_dify_last(env):
     assert kinds[-2:] == ["weknora", "dify"]
 
 
-async def test_obsidian_cli_install_registers_binary(env, monkeypatch: pytest.MonkeyPatch, tmp_path):
+async def test_obsidian_cli_install_registers_binary(
+    env, monkeypatch: pytest.MonkeyPatch, tmp_path
+):
     c, _, auth, _ = env
     home = tmp_path / "home"
     source = tmp_path / "Obsidian.app" / "Contents" / "MacOS" / "obsidian-cli"

@@ -446,6 +446,8 @@ def _humanize_cli_error(message: str, *, vault: str) -> str:
         or "未找到命令" in text
         or "未找到主机命令" in text
         or "no such file" in lower
+        or "not recognized" in lower
+        or "cannot find the file" in lower
     ):
         return OBSIDIAN_CLI_MISSING
     if any(
