@@ -18,6 +18,13 @@
 - 知识库与对话附件支持 WPS Writer（`.wps`）及旧版 Word（`.doc`）：用 `firecrawl-anydoc` 抽成 Markdown 入库 / 注入模型上下文（OLE 二进制按内容识别，不依赖本机安装 WPS）（#1345）
 - 在微信、企业微信、QQ、钉钉、飞书等 App 内置浏览器里点下载，不再只提示「可在浏览器打开此网页来下载文件」：会先生成一个 10 分钟内有效、无需登录的下载链接，可一键复制到手机浏览器打开下载（Fixes #1263）
 
+### 新增
+- OpenDesign 内置连接器：本机自动检测、MCP 配置导入、持续会话、设计任务跟踪与素材 Resources 读取。
+- `octop connector install/get/remove open-design`，支持外部 `od mcp install octop` 一键注册，加密保存启动配置。
+
+### 修复
+- 保留共享 MCP 工具返回的结构化结果，支持工具参数中的对象、数组及枚举。
+
 ## [1.0.2b7] - 2026-10-12
 
 ### 新增
