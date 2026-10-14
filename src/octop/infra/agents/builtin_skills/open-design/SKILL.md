@@ -33,11 +33,11 @@ to the connector settings.
 5. Submit start_run with the confirmed brief. Keep its requestId and runId. A
    transport retry must reuse the same requestId and parameters. A requested
    design revision is a new action in the same project, with a new requestId.
-6. Query get_run or the host task_status tool. For a request to wait, use
-   task_status(wait=true): the host polls every 30 seconds for at most 60 seconds.
-   Avoid tight loops or shell sleeps. If still running, report its state and
-   retain its identity for the next message. Do not start another run or
-   overwrite files to bypass a pending run.
+6. After start_run returns, report submission and end the model turn. Octop
+   monitors the task in the background and updates its task card. Do not loop
+   get_run, wait, sleep or keep the model turn open. When the user asks about
+   progress, query task_status once. Do not start another run or overwrite files
+   to bypass a pending run.
 7. On success, show the preview link and the generator's explanation. If no
    preview exists, report what the generator returned without claiming an artifact
    exists. On failure, explain the returned actionable cause. Refresh get_run if
@@ -49,5 +49,5 @@ to the connector settings.
    an Octop reply does not mean canceling the upstream task.
 
 Model credentials and the generation runtime are configured in OpenDesign.
-This connector does not promise binary export, file synchronization or automatic
-completion notifications. Deliver preview links and source on demand.
+The dashboard task card updates without another model call. This connector does
+not promise binary export, file synchronization or notifications to IM channels.

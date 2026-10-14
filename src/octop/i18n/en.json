@@ -392,8 +392,8 @@
       "task_running": "A design task is pending. Query it before submitting another task.",
       "list_resources": "List OpenDesign skills and design-system resources; follow the returned cursor.",
       "read_resource": "Read an OpenDesign resource by URI when its design context is needed.",
-      "task_status": "Query the latest design task in this conversation. Set wait=true to poll every 30 seconds for up to 60 seconds; otherwise return immediately.",
-      "flow": "Use the open-design Skill. Collect and confirm the brief in this conversation, pass project explicitly, preserve requestId on retries, poll get_run, deliver preview links and fetch source only on request. Never display brief draft IDs or nonces.",
+      "task_status": "Read the current design task status once. Octop tracks generation in the background; do not loop or wait for completion.",
+      "flow": "Use the open-design Skill. Collect and confirm the brief in this conversation, pass project explicitly, preserve requestId on retries, end the model turn after submission; the host tracks completion in the background, deliver preview links and fetch source only on request. Never display brief draft IDs or nonces.",
       "harness_required": "This connector requires a newer octop-harness with ManagedMCPClient. Use the local Harness source for development.",
       "local_missing": "Install OpenDesign on the Octop host, open the app, and retry detection.",
       "local_stopped": "Open OpenDesign on the Octop host and retry detection. If discovery is unavailable in this version, import Settings → MCP server configuration.",
@@ -552,7 +552,11 @@
     "TEAM_NOT_SHAREABLE": "Teams cannot be shared in this version.",
     "LOCAL_DOWNLOAD_UNAVAILABLE": "Saving to the host Downloads folder is only available when Octop is opened on this computer.",
     "SKILL_PACKAGE_COPY_DENIED": "The creator of this skill package has disabled copying its skills.",
-    "SKILL_PACKAGE_LOCKED": "This skill was copied from a locked skill package and cannot be edited in the workspace."
+    "SKILL_PACKAGE_LOCKED": "This skill was copied from a locked skill package and cannot be edited in the workspace.",
+    "OPEN_DESIGN_SELECTION_INVALID": "The selected runtime, model or material is no longer available. Refresh the catalog.",
+    "OPEN_DESIGN_FILE_CONFLICT": "The file changed or was truncated. Reload it and review the changes before saving.",
+    "OPEN_DESIGN_TASK_RUNNING": "A design task is still running. Wait or explicitly cancel it before editing source.",
+    "OPEN_DESIGN_PATH_INVALID": "Select a relative file path inside this OpenDesign project."
   },
   "desktop": {
     "install_log_deps": "Installing Python dependencies…",

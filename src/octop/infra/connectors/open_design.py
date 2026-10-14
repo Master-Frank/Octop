@@ -16,6 +16,8 @@ from mcp import ClientSession, types
 if TYPE_CHECKING:
     from octop_harness import ManagedMCPClient
 
+    from octop.infra.connectors.open_design_tasks import OpenDesignTasks
+
 from octop.i18n import tr
 from octop.infra.connectors.mcp_tool_cache import fingerprint_mcp_spec
 
@@ -131,7 +133,9 @@ async def probe_open_design(creds: dict[str, Any]) -> dict[str, Any]:
 class OpenDesignRuntime:
     """Host-owned session pool. Protocol-only resources live in octop-harness."""
 
-    def __init__(self, service: Any, repos: Any) -> None:
+    def __init__(self, service: Any, repos: Any, *, tasks: OpenDesignTasks | None = None) -> None:
+        self.tasks = tasks
+        self.console: Any = None
         self._service = service
         self._repos = repos
         self._clients: dict[tuple[int, str, str, str, str], ManagedMCPClient] = {}
@@ -141,6 +145,10 @@ class OpenDesignRuntime:
     def replace_persistence(self, service: Any, repos: Any) -> None:
         """Follow the host's control-plane binding; active agents are reloaded by it."""
         self._service, self._repos = service, repos
+        if self.tasks is not None:
+            self.tasks.service, self.tasks.repos = service, repos
+        if self.console is not None:
+            self.console.service, self.console.repos = service, repos
 
     async def close(self, *, user_id: int | None = None, agent_id: str | None = None) -> None:
         for key in list(self._clients):
@@ -240,8 +248,11 @@ class OpenDesignRuntime:
                 state = json.loads(
                     await asyncio.to_thread(self._repos.settings_repo.get, task_key) or "{}"
                 )
+                if self.tasks is not None:
+                    await self.tasks.reconcile(user_id, instance_id, agent_id, thread_id, state)
                 arguments = {k: v for k, v in args.items() if v is not None}
-                wait_for_task = name == "task_status" and arguments.pop("wait", False) is True
+                if name == "task_status":
+                    arguments.pop("wait", None)
                 if name in _PROJECT_TOOLS and not arguments.get("project"):
                     if not state.get("project"):
                         raise ToolException(tr("connector.open_design.project_required", locale))
@@ -250,6 +261,16 @@ class OpenDesignRuntime:
                     if not state.get("runId"):
                         raise ToolException(tr("connector.open_design.no_task", locale))
                     name, arguments = "get_run", {"runId": state["runId"]}
+                if name in {"create_project", "start_run"} and self.console is not None:
+                    await self.console.apply_selection(
+                        client, user_id, instance_id, agent_id, thread_id, name, arguments
+                    )
+                if (
+                    name in {"write_file", "delete_file", "create_artifact", "delete_project"}
+                    and state.get("requestId")
+                    and state.get("status") not in _TERMINAL
+                ):
+                    raise ToolException(tr("connector.open_design.task_running", locale))
                 if name == "start_run":
                     if state.get("status") not in _TERMINAL and state.get("requestId"):
                         previous = state.get("arguments") or {}
@@ -275,21 +296,13 @@ class OpenDesignRuntime:
                     await asyncio.to_thread(
                         self._repos.settings_repo.set, task_key, json.dumps(state)
                     )
+                    if self.tasks is not None:
+                        await self.tasks.register(user_id, instance_id, agent_id, thread_id, state)
                 if name == "list_resources":
                     return await client.list_resources(arguments.get("cursor"))
                 if name == "read_resource":
                     return await client.read_resource(str(arguments["uri"]))
                 result = await client.call_tool(name, arguments)
-                if wait_for_task and not result.isError:
-                    try:
-                        async with asyncio.timeout(60):
-                            while result_payload(result).get("status") in {"queued", "running"}:
-                                await asyncio.sleep(30)
-                                result = await client.call_tool(name, arguments)
-                                if result.isError:
-                                    break
-                    except TimeoutError:
-                        pass  # Deliver the latest known status; generation continues.
                 if name == "collect_brief" and result.structuredContent is not None:
                     # Conversational forms need model-visible questions; artifacts
                     # alone are not included in the model's tool-result content.
@@ -321,11 +334,29 @@ class OpenDesignRuntime:
                     await asyncio.to_thread(
                         self._repos.settings_repo.set, task_key, json.dumps(state)
                     )
+                    if (
+                        self.tasks is not None
+                        and name in {"start_run", "get_run", "cancel_run"}
+                        and state.get("requestId")
+                        and (name == "start_run" or arguments.get("runId") == state.get("runId"))
+                    ):
+                        await self.tasks.register(
+                            user_id, instance_id, agent_id, thread_id, state, payload
+                        )
                 elif name == "start_run":
                     state["status"] = "failed"
                     await asyncio.to_thread(
                         self._repos.settings_repo.set, task_key, json.dumps(state)
                     )
+                    if self.tasks is not None:
+                        await self.tasks.register(
+                            user_id,
+                            instance_id,
+                            agent_id,
+                            thread_id,
+                            state,
+                            {"status": "failed", "error": "generation_rejected"},
+                        )
                 return result
             except ToolException:
                 raise

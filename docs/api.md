@@ -433,6 +433,38 @@ registration (DCR), stores encrypted tokens in the custom MCP spec, and injects 
 Bearer` when loading tools. Loopback and LAN MCP URLs may use HTTP and do not use remote OAuth
 discovery.
 
+OpenDesign adds the following authenticated routes. `S` below means
+`/agents/{agent_id}/threads/{thread_id}/open-design`; the caller must own the
+conversation and have access to its agent. Instance operations additionally
+require an active, visible OpenDesign connector. Defaults belong to the caller,
+including when the connector is shared.
+
+| Method | Path | Notes |
+|--------|------|-------|
+| `GET` | `/connector-instances/{id}/open-design/health` | read-only layered checks; does not verify actual generation |
+| `GET` | `/connector-instances/{id}/open-design/catalog` | paginated materials, runtimes and personal defaults |
+| `PUT` | `/connector-instances/{id}/open-design/selection` | validate and save personal defaults |
+| `GET` | `/connector-instances/{id}/open-design/resource?uri=…` | bounded plain-text material preview |
+| `GET` | `S/tasks` | latest 50 persisted task summaries |
+| `GET` | `S/events` | SSE snapshots, including initial/reconnected state; no LLM invocation |
+| `POST` | `S/tasks/{task_id}/refresh` | refresh status/preview without resubmitting generation |
+| `POST` | `S/tasks/{task_id}/cancel` | explicit upstream cancellation |
+| `GET` | `S/instances/{id}/catalog` | catalog and conversation selection, falling back to personal defaults |
+| `PUT` | `S/instances/{id}/selection` | validated conversation override |
+| `GET` | `S/instances/{id}/resource?uri=…` | bounded material preview |
+| `GET` | `S/instances/{id}/projects/{project}/search?query=…` | bounded source search in a project used by the conversation |
+| `GET` | `S/instances/{id}/projects/{project}/file?path=…` | source, SHA-256 digest and truncation flag |
+| `PUT` | `S/instances/{id}/projects/{project}/file` | `{path,digest,content}`; recheck, write, verify and refresh preview |
+
+Task summaries include `anchor_message_ids`: assistant messages from the original
+submission turn, newest first. These keep cards attached across status updates and
+history pagination. New submissions retain their original turn even if rejected
+before receiving a run ID; legacy tasks recover it from the original `start_run` result.
+
+Source writes reject changed/partial files and known active tasks. This is a
+read-compare-write check, not an atomic upstream version check. Launch credentials
+and full source are excluded from task summaries. See [OpenDesign](connectors-open-design.md).
+
 ## Internal MCP (octop-harness agents)
 
 | Method | Path | Auth | Notes |

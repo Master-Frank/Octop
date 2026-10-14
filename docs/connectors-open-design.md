@@ -73,11 +73,29 @@ MCP 进程；SSH 必须非交互且不分配 TTY。远端桥在实例内部调�
 ## 行为与限制
 
 - 需求草稿依赖 MCP 会话；空闲连接释放、服务重启或草稿过期后，需要重新确认需求。
-- 生成任务由 OpenDesign 保存。停止 Octop 回复不会取消生成；可继续询问进度。
-- 同一对话、同一连接器只跟踪一个当前任务。修改设计沿用原项目。
+- 生成任务由 OpenDesign 执行，Octop 持久化任务历史并在后台查询。停止 Octop 回复不会取消生成；结果卡自动更新，可显式取消或刷新。
+- 同一对话、同一连接器同时只提交一个当前任务，聊天展示最近 50 条历史。重启后恢复查询，绝不自动重跑生成。修改设计沿用原项目。
+- 任务卡绑定发起生成的对话轮次，显示在该轮回复末尾；完成后保留原位置，不随新一轮对话移动。刷新后从持久化记录恢复；较早轮次的卡片随历史消息加载。尚未关联到已加载消息的进行中任务临时显示在列表末尾，已完成任务不会放到其他轮次。移除输入框中的连接器标签不会删除历史卡片。长摘要的“展开 / 收起”放在正文下方左侧，卡片两侧等宽留白，避开浮动工具栏。
 - 测试连接执行只读检查，不自动生成设计；真实生成需人工验收。
-- 首期交付预览链接与按需源码，不自动同步文件或主动推送完成通知。
+- 后台查询使用独立 MCP 会话，通常间隔 30 秒，故障退避到 60–120 秒；网页重连补齐持久化结果。连接器删除、禁用或权限撤销后暂停追踪；恢复权限后可手动刷新。完成通知仅更新 Octop 网页，不向 IM 渠道推送。
+- 生成提交响应丢失且未取得 runId 时，不自动重交；需在原会话用相同 requestId 和参数恢复确认。
 - 本次实现需要包含 `ManagedMCPClient` 的 octop-harness；跨仓库开发时使用本地源码版本。
+
+## 素材、运行时与源码（第二阶段）
+
+已启用连接器卡片提供设置图标；聊天输入框中，点击已选择的 OpenDesign 标签可打开“素材与生成配置”，标签旁的 × 仍用于移除连接器。移除后入口随标签消失。
+连接器页面保存个人默认配置；已有会话中保存的是该会话的覆盖值。清空会话选择后保存可停止继承个人默认值。
+技能 / 模板和设计系统来自实际 MCP Resources，支持分页、搜索已加载素材；点击“阅读”在独立弹窗中展示纯文本内容。
+生成前再次校验实际 ID；技能绑定生成参数，设计系统仅在新建项目时绑定。
+此界面不展示只读插件列表。MCP 的 `start_run` 支持使用插件，但没有插件编辑接口；插件配置仍在 OpenDesign 管理。
+
+生成运行时与模型使用上游返回的选项。模型列表仅是样本，留空可复用 CLI 默认模型；不能据此判断登录、额度或模型权限。
+“分层检查连接”检查启动配置、MCP 协议、daemon、生成运行时及素材读取，不触发付费生成。
+
+任务卡的“项目源码”可搜索并读取当前会话使用过的项目文件，修改后先查看差异，再保存。
+保存前重新读取并比较 SHA-256 摘要，拒绝已变化、已截断的文件及已知运行中的任务，写后再次读取验证并获取预览。
+路径必须是项目相对路径。上游尚不支持原子版本校验，读取与写入之间仍有并发窗口，应避免在其他应用中同时修改。
+下载、导出、完整 MCP Apps 宿主属于后续可选范围。
 
 ## English
 
@@ -106,3 +124,15 @@ CLI and passes the canonical launch spec over stdin. Select an owner with
 server to refresh its runtime configuration. `--print` is a non-writing preview
 and includes the full launch environment. Older packaged OpenDesign versions
 need the updated CLI before they recognize the `octop` target.
+
+Phase 2 adds durable background tracking with restart recovery and live task cards.
+It never resubmits generation automatically; stopping a reply does not cancel the task.
+Cards provide explicit cancel, refresh and source actions. Connector defaults and conversation
+overrides select actual runtime/model and material IDs, revalidated before generation.
+Resources are paginated and previewed as plain text; plugin inputs remain managed in OpenDesign.
+Health checks do not verify paid generation or runtime login.
+
+Source edits require diff review, fresh digest comparison and post-write verification.
+Partial reads, invalid project paths and known active tasks are rejected. Upstream writes
+are not atomic version checks; avoid simultaneous edits. Downloads, exports and a complete
+MCP Apps host remain optional future work.

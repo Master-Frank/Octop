@@ -497,8 +497,13 @@ class AgentManager:
             config=self._config,
         )
         from octop.infra.connectors.open_design import OpenDesignRuntime
+        from octop.infra.connectors.open_design_console import OpenDesignConsole
+        from octop.infra.connectors.open_design_tasks import OpenDesignTasks
 
-        self._open_design = OpenDesignRuntime(self._connector_svc, repos)
+        self._open_design = OpenDesignRuntime(
+            self._connector_svc, repos, tasks=OpenDesignTasks(self._connector_svc, repos)
+        )
+        self._open_design.console = OpenDesignConsole(self._open_design, self._connector_svc, repos)
         # User-scoped custom MCP tools: (user_id, server_name, fingerprint) -> tools
         self._mcp_tool_cache: dict[tuple[int, str, str], list[Any]] = {}
         self._mcp_tool_cache_locks: dict[tuple[int, str], asyncio.Lock] = {}
@@ -612,7 +617,17 @@ class AgentManager:
                     error=AGENT_START_TIMEOUT,
                 )
 
+    @property
+    def open_design(self) -> Any:
+        return self._open_design
+
+    async def start_open_design_tracking(self) -> None:
+        if self._open_design.tasks is not None:
+            await self._open_design.tasks.start()
+
     async def shutdown(self) -> None:
+        if self._open_design.tasks is not None:
+            await self._open_design.tasks.stop()
         await self._open_design.close()
         self._reclaim_pending.clear()
         reclaim_task = self._reclaim_task

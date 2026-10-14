@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
+from unittest.mock import AsyncMock
 
 import pytest
 from langchain_core.runnables.config import var_child_runnable_config
@@ -114,6 +115,12 @@ async def test_persistent_brief_resources_tasks_and_isolation() -> None:
         await runtime.close()
         restored = await invoke("task_status", {})
         assert "succeeded" in restored.content
+        tracker = SimpleNamespace(reconcile=AsyncMock(), register=AsyncMock())
+        runtime.tasks = tracker
+        await invoke("get_run", {"runId": "unrelated-run"})
+        tracker.register.assert_not_awaited()
+        await invoke("task_status", {})
+        tracker.register.assert_awaited_once()
         repos.agent_repo.get = lambda _: SimpleNamespace(user_id=None)
         shared_other = await invoke(
             "confirm_brief",
