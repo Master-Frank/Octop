@@ -621,6 +621,7 @@
     "deepseek_search": "DeepSeek web search",
     "google_search": "Google web search",
     "kimi_search": "Kimi web search",
+    "yuanbao_search": "Yuanbao web search",
     "searchfree_search": "AI web search",
     "cronjob_list": "List cron jobs",
     "cronjob_get": "Get cron job",

@@ -699,6 +699,9 @@
         },
         "kimi": {
           "desc": "Moonshot AI with built-in web search capability"
+        },
+        "yuanbao": {
+          "desc": "Tencent Yuanbao Search over the open web and Tencent content"
         }
       },
       "test": "Test Connection",
@@ -1830,6 +1833,7 @@
     "deepseek_search": "DeepSeek web search",
     "google_search": "Google web search",
     "kimi_search": "Kimi web search",
+    "yuanbao_search": "Yuanbao web search",
     "searchfree_search": "AI web search",
     "cronjob_list": "List cron jobs",
     "cronjob_get": "Get cron job",
