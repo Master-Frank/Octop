@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "octop"
-version = "1.0.2b7"
+version = "1.0.2"
 description = "Smarter self-hosted AI assistant for multiple users and agents, built on octop-harness"
 readme = "README.md"
 license = { text = "MIT" }
@@ -21,10 +21,12 @@ dependencies = [
     "apscheduler>=3.10,<4",
     "argon2-cffi>=23.1",
     "pyjwt>=2.8",
-    "octop-harness[all]>=1.0.2",
-    "octop-memory>=1.0.1",
+    # Temporary pin: ManagedMCPClient / HITL scope landed in upstream PR #65.
+    # Replace with the released version once that commit is published on PyPI.
+    "octop-harness[all] @ git+https://github.com/TencentCloud/octop-harness.git@1625ae38a752c8d7285601ac60263cd0db2a975e",
+    "octop-memory>=1.0.2",
     "lark-oapi>=1.7.3",
-    "octop-gateway>=1.0.2",
+    "octop-gateway>=1.0.3",
     "cryptography>=41",
     "scalar-fastapi>=1.0",
     "edge-tts>=6.1",
@@ -96,6 +98,9 @@ dev = [
 
 [project.scripts]
 octop = "octop.cli.main:cli"
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/octop"]

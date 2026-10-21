@@ -14,7 +14,11 @@ from langchain_core.runnables.config import var_child_runnable_config
 from langchain_core.tools import ToolException
 
 from octop.config import OctopConfig
-from octop.infra.connectors.builder import build_http_mcp_spec, validate_create_credentials
+from octop.infra.connectors.builder import (
+    build_http_mcp_spec,
+    build_mcp_server_configs_for_user,
+    validate_create_credentials,
+)
 from octop.infra.connectors.catalog import get_catalog_entry
 from octop.infra.connectors.open_design import OpenDesignRuntime, probe_open_design
 
@@ -47,6 +51,35 @@ def test_builtin_config_and_secret_preview() -> None:
     }
     with pytest.raises(ValueError):
         validate_create_credentials("open-design", {"command": "node", "args": "[1]"})
+
+
+def test_open_design_does_not_capture_other_stdio_connectors() -> None:
+    entry = get_catalog_entry("yuque-mcp")
+    assert entry is not None
+    spec = build_http_mcp_spec(
+        entry=entry, instance_id="yuque", creds={"token": "test-token"}, config=OctopConfig()
+    )
+    assert spec["transport"] == "stdio"
+    assert spec["command"] == "npx"
+    assert spec["args"] == ["-y", "yuque-mcp"]
+    assert spec["env"]["YUQUE_PERSONAL_TOKEN"] == "test-token"
+    instance = SimpleNamespace(
+        instance_id="yuque", kind="yuque-mcp", status="active", mcp_server_name="yuque__one"
+    )
+    configs = build_mcp_server_configs_for_user(
+        svc=SimpleNamespace(
+            decrypt=lambda _: {"token": "test-token"}, custom_harness_configs=lambda _: {}
+        ),
+        connector_repo=SimpleNamespace(
+            connector_feature_allows=lambda _: True, list_visible=lambda _: [instance]
+        ),
+        user_id=7,
+        agent_id="a",
+        agent_user_id=7,
+        config=OctopConfig(),
+        log=False,
+    )
+    assert configs["yuque__one"] == spec
 
 
 @pytest.mark.asyncio
