@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Iterator
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from octop_harness.config import ModelConfig, ProviderConfig
@@ -13,6 +14,7 @@ from octop.infra.agents.providers.opencode_session import session_header_for_pro
 from octop.infra.agents.providers.reasoning import reasoning_capability
 
 if TYPE_CHECKING:
+    from octop.infra.crypto.sealed_repos import SealedProviderRepo
     from octop.infra.db.repos.agents import AgentRow
     from octop.infra.db.repos.providers import ProviderRepo
 
@@ -88,6 +90,14 @@ def _provider_extra_dict(row: Any) -> dict[str, Any]:
     except json.JSONDecodeError:
         return {}
     return extra if isinstance(extra, dict) else {}
+
+
+@dataclass(frozen=True)
+class AutoRouteCandidate:
+    """One usable model and its effective prompt capacity."""
+
+    ref: str
+    max_input_tokens: int
 
 
 def _infer_model_input_modalities(
@@ -169,7 +179,7 @@ class ProviderStore:
 
     def __init__(
         self,
-        provider_repo: ProviderRepo,
+        provider_repo: ProviderRepo | SealedProviderRepo,
     ) -> None:
         self._provider_repo = provider_repo
 
@@ -297,6 +307,39 @@ class ProviderStore:
                     return f"{row.name}/{model_id}"
         return None
 
+    def list_auto_route_candidates(
+        self,
+        *,
+        needs_multimodal: bool,
+    ) -> list[AutoRouteCandidate]:
+        """Return stable, usable candidates for one automatic route."""
+        candidates: list[AutoRouteCandidate] = []
+        for row in self.iter_usable_rows():
+            for model in row.get_models():
+                if not is_chat_eligible_model(
+                    model,
+                    provider_name=row.name,
+                    provider_api_key=row.api_key,
+                ):
+                    continue
+                if needs_multimodal and not _model_dict_supports_image(model):
+                    continue
+                model_id = str(model.get("id") or "").strip()
+                if not model_id:
+                    continue
+                raw_capacity = model.get("max_input_tokens") or model.get("context_window") or 0
+                try:
+                    capacity = max(0, int(raw_capacity))
+                except (TypeError, ValueError):
+                    capacity = 0
+                candidates.append(
+                    AutoRouteCandidate(
+                        ref=f"{row.name}/{model_id}",
+                        max_input_tokens=capacity,
+                    )
+                )
+        return candidates
+
     def is_model_ref_usable(self, ref: str) -> bool:
         """Return True when *ref* points at a chat-eligible model on a usable provider."""
         ref = ref.strip()
@@ -366,6 +409,7 @@ class ProviderStore:
 
 
 __all__ = [
+    "AutoRouteCandidate",
     "KIND_TO_PROTOCOL",
     "ProviderStore",
     "clear_stale_pins_for_provider",
