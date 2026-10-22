@@ -13,7 +13,7 @@ async def test_tasks_are_owned_and_readable_after_restart(env_with_agent):
     created = await c.post(f"/api/agents/{agent}/threads", headers=auth, json={})
     assert created.status_code == 201
     thread_id = created.json()["thread_id"]
-    tasks = srv.app_runtime.agent_registry.connector_runtime.open_design.tasks
+    tasks = srv.app_runtime.agent_registry.connector_runtime.get("open-design").tasks
     row = srv.services.thread_repo.get(thread_id)
     assert row is not None
     await tasks.register(

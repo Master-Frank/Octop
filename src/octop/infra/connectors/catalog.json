@@ -440,7 +440,8 @@
       "icon": "open-design",
       "color": "#8b5cf6",
       "phase": "available",
-      "mcp_mode": "stdio",
+      "mcp_mode": "managed",
+      "runtime_handler": "open-design",
       "category": "self_hosted",
       "auth_hint": {
         "en": "Detect local OpenDesign automatically, or import MCP configuration under Advanced. Configure the generation runtime in OpenDesign.",

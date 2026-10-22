@@ -130,6 +130,16 @@ async def probe_open_design(creds: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": tr("connector.open_design.connection_failed", locale)}
 
 
+def create_runtime(service: Any, repos: Any) -> OpenDesignRuntime:
+    """Build the connector-owned session, console and tracking lifecycle."""
+    from octop.infra.connectors.open_design_console import OpenDesignConsole
+    from octop.infra.connectors.open_design_tasks import OpenDesignTasks
+
+    runtime = OpenDesignRuntime(service, repos, tasks=OpenDesignTasks(service, repos))
+    runtime.console = OpenDesignConsole(runtime, service, repos)
+    return runtime
+
+
 class OpenDesignRuntime:
     """Host-owned session pool. Protocol-only resources live in octop-harness."""
 
@@ -141,6 +151,15 @@ class OpenDesignRuntime:
         self._clients: dict[tuple[int, str, str, str, str], ManagedMCPClient] = {}
         self._locks: dict[tuple[int, str, str, str, str], asyncio.Lock] = {}
         self._timers: dict[tuple[int, str, str, str, str], asyncio.TimerHandle] = {}
+
+    async def start(self) -> None:
+        if self.tasks is not None:
+            await self.tasks.start()
+
+    async def shutdown(self) -> None:
+        if self.tasks is not None:
+            await self.tasks.stop()
+        await self.close()
 
     def replace_persistence(self, service: Any, repos: Any) -> None:
         """Follow the host's control-plane binding; active agents are reloaded by it."""

@@ -72,6 +72,14 @@ MCP 进程；SSH 必须非交互且不分配 TTY。远端桥在实例内部调�
 
 持久化 daemon 存储遵循上游 [AGENTS.md 的数据目录约定](https://github.com/nexu-io/open-design/blob/main/AGENTS.md)。
 
+## 受管 MCP 接入
+
+catalog 用 `mcp_mode: managed` 和 `runtime_handler` 声明由宿主管理会话。
+注册处理器提供凭据校验、连接配置和运行时工厂；通用连接器运行时只按声明分发选中的工具，
+并向已注册的运行时广播启动、关闭和持久化重绑定，不判断产品名称。
+OpenDesign 的会话隔离、需求状态和工具包装仍由自身处理器负责。
+普通 stdio 连接器继续由 Harness 加载，gateway 连接器保留启动后注入的既有路径。
+
 ## 行为与限制
 
 - 需求草稿依赖 MCP 会话；空闲连接释放、服务重启或草稿过期后，需要重新确认需求。
