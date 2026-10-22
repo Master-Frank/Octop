@@ -677,7 +677,7 @@ class AgentManager:
                 )
 
     async def shutdown(self) -> None:
-        await self._connector_runtime.close()
+        await self._connector_runtime.shutdown()
         self._reclaim_pending.clear()
         reclaim_task = self._reclaim_task
         self._reclaim_task = None

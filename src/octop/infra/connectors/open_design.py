@@ -138,6 +138,12 @@ class OpenDesignRuntime:
         self._locks: dict[tuple[int, str, str, str, str], asyncio.Lock] = {}
         self._timers: dict[tuple[int, str, str, str, str], asyncio.TimerHandle] = {}
 
+    async def start(self) -> None:
+        """No background work is needed until a tool is selected."""
+
+    async def shutdown(self) -> None:
+        await self.close()
+
     def replace_persistence(self, service: Any, repos: Any) -> None:
         """Follow the host's control-plane binding; active agents are reloaded by it."""
         self._service, self._repos = service, repos
