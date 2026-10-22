@@ -2007,7 +2007,6 @@ class AgentManager:
 
     async def reload_all(self) -> None:
         """Rebuild harness runtime for every enabled agent (bounded parallel)."""
-        await self._connector_runtime.close()
         agent_ids = [
             row.agent_id for row in self._repos.agent_repo.list_all(include_disabled=False)
         ]
