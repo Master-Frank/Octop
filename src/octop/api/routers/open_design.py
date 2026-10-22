@@ -37,7 +37,7 @@ class DesignTask(BaseModel):
 
 
 def _tasks(server: Any) -> OpenDesignTasks:
-    tasks: OpenDesignTasks = server.app_runtime.agent_registry.open_design.tasks
+    tasks: OpenDesignTasks = server.app_runtime.agent_registry.connector_runtime.open_design.tasks
     return tasks
 
 
@@ -154,7 +154,7 @@ class EditFile(BaseModel):
 
 
 def _console(server: Any) -> Any:
-    return server.app_runtime.agent_registry.open_design.console
+    return server.app_runtime.agent_registry.connector_runtime.open_design.console
 
 
 @router.get(
