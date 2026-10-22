@@ -56,9 +56,9 @@ pnpm --filter @open-design/daemon build
 node apps/daemon/dist/cli.js mcp install octop
 ```
 
-确保 Octop CLI 在该进程的 PATH 中。当前依赖临时固定到上游已合并的 Harness 提交
-`1625ae38a752c8d7285601ac60263cd0db2a975e`（PR #65），标准 `uv sync` 会安装所需 API，无需本地源码覆盖。
-待该提交发布到 PyPI 后，应将依赖切回对应的正式版本并更新锁文件。
+确保 Octop CLI 在该进程的 PATH 中。Harness 依赖使用 PyPI 正式版本。
+OpenDesign 集成需要包含 `ManagedMCPClient` 的 Harness 发布版（上游 PR #65）；截至 2026-10-22，
+PyPI 最新的 1.0.4 尚不包含该接口，需待新版发布后再完成集成验收和合入。
 不要直接修改 Octop 数据库，也不要把 macOS `/usr/bin/od` 当作 OpenDesign CLI。
 
 ## 服务器 / Docker
@@ -79,7 +79,7 @@ MCP 进程；SSH 必须非交互且不分配 TTY。远端桥在实例内部调�
 - 同一对话、同一连接器只跟踪一个当前任务。修改设计沿用原项目。
 - 测试连接执行只读检查，不自动生成设计；真实生成需人工验收。
 - 首期交付预览链接与按需源码，不自动同步文件或主动推送完成通知。
-- 本次实现需要包含 `ManagedMCPClient` 的 octop-harness；依赖已临时固定到上游合并提交，等待正式发布后切回版本号。
+- 本次实现需要包含 `ManagedMCPClient` 的 octop-harness；当前 PyPI 1.0.4 尚不包含，等待新版发布后合入。
 
 ## English
 
@@ -109,7 +109,6 @@ server to refresh its runtime configuration. `--print` is a non-writing preview
 and includes the full launch environment. Older packaged OpenDesign versions
 need the updated CLI before they recognize the `octop` target.
 
-The Harness dependency is temporarily pinned to upstream merge commit
-`1625ae38a752c8d7285601ac60263cd0db2a975e` (PR #65) until a PyPI release includes
-`ManagedMCPClient`. Standard `uv sync` installs it without a local source overlay.
-Switch the requirement and lockfile back to that released version after publication.
+The Harness dependency uses PyPI releases. As of 2026-10-22, the latest release
+1.0.4 does not include `ManagedMCPClient` from upstream PR #65. Keep this integration
+as a draft until a published release includes the API and passes the standard checks.
