@@ -196,6 +196,7 @@ async def test_prepare_chat_mcp_injects_custom_from_cache() -> None:
     mgr.get_agent = MagicMock(return_value=agent)
     mgr.get_row = MagicMock(return_value=row)
     mgr._connector_uid_for = MagicMock(return_value=7)
+    mgr._connector_runtime = MagicMock(prepare_tools=AsyncMock())
     mgr._connector_svc = MagicMock()
     mgr._connector_svc.custom_harness_configs.return_value = {
         "deepwiki": {
@@ -254,6 +255,7 @@ async def test_prepare_chat_mcp_attaches_gateway_tools_without_reload() -> None:
     mgr = object.__new__(AgentManager)
     mgr._repos = MagicMock()
     mgr._repos.connector_repo.list_visible.return_value = [inst]
+    mgr._connector_runtime = MagicMock(prepare_tools=AsyncMock())
     mgr._connector_svc = MagicMock()
     mgr._connector_svc.custom_harness_configs.return_value = {}
     mgr._connector_svc.decrypt.return_value = {"email": "a@qq.com", "password": "code"}
