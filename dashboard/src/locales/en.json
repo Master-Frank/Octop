@@ -7207,5 +7207,12 @@
     "content": "File content",
     "review": "Review changes",
     "save": "Save reviewed changes"
+  },
+  "textAssist": {
+    "hint": "Generate from the name with AI, or polish the current text",
+    "action": "AI polish",
+    "nameRequired": "Enter a name first",
+    "failed": "Polish failed. Please try again later.",
+    "emptyResult": "The model returned an empty result"
   }
 }

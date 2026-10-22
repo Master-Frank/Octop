@@ -7207,5 +7207,12 @@
     "content": "文件内容",
     "review": "查看修改对比",
     "save": "保存已复核的修改"
+  },
+  "textAssist": {
+    "hint": "可用 AI 根据名称生成，或润色当前内容",
+    "action": "AI 润色",
+    "nameRequired": "请先填写名称",
+    "failed": "润色失败，请稍后重试",
+    "emptyResult": "模型未返回结果"
   }
 }
