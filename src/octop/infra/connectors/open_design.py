@@ -5,23 +5,21 @@ from __future__ import annotations
 import asyncio
 import json
 import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from langchain_core.tools import StructuredTool, ToolException
-from langchain_mcp_adapters.tools import convert_mcp_tool_to_langchain_tool
 from langgraph.config import get_config
-from mcp import ClientSession, types
+from mcp import types
 
 if TYPE_CHECKING:
-    from octop_harness import ManagedMCPClient
-
     from octop.infra.connectors.open_design_tasks import OpenDesignTasks
 
 from octop.i18n import tr
-from octop.infra.connectors.mcp_tool_cache import fingerprint_mcp_spec
+from octop.infra.connectors.stdio import StdioRuntime
+from octop.infra.connectors.stdio import new_stdio_client as _new_client
+from octop.infra.utils.env_file import overlay_stdio_spec_env
 
-_IDLE_SECONDS = 600
 _TERMINAL = {"succeeded", "failed", "canceled", "cancelled"}
 _PROJECT_TOOLS = {
     "get_artifact",
@@ -35,12 +33,6 @@ _PROJECT_TOOLS = {
     "delete_project",
     "start_run",
 }
-
-
-def _new_client(spec: dict[str, Any]) -> ManagedMCPClient:
-    from octop_harness import ManagedMCPClient
-
-    return ManagedMCPClient(spec)
 
 
 def _json_field(value: Any, expected: type[Any], field: str) -> Any:
@@ -140,67 +132,26 @@ def create_runtime(service: Any, repos: Any) -> OpenDesignRuntime:
     return runtime
 
 
-class OpenDesignRuntime:
+class OpenDesignRuntime(StdioRuntime):
     """Host-owned session pool. Protocol-only resources live in octop-harness."""
 
     def __init__(self, service: Any, repos: Any, *, tasks: OpenDesignTasks | None = None) -> None:
+        super().__init__(service, repos)
         self.tasks = tasks
         self.console: Any = None
-        self._service = service
-        self._repos = repos
-        self._clients: dict[tuple[int, str, str, str, str], ManagedMCPClient] = {}
-        self._locks: dict[tuple[int, str, str, str, str], asyncio.Lock] = {}
-        self._timers: dict[tuple[int, str, str, str, str], asyncio.TimerHandle] = {}
-
-    async def start(self) -> None:
-        if self.tasks is not None:
-            await self.tasks.start()
-
-    async def shutdown(self) -> None:
-        if self.tasks is not None:
-            await self.tasks.stop()
-        await self.close()
 
     def replace_persistence(self, service: Any, repos: Any) -> None:
-        """Follow the host's control-plane binding; active agents are reloaded by it."""
-        self._service, self._repos = service, repos
+        super().replace_persistence(service, repos)
         if self.tasks is not None:
             self.tasks.service, self.tasks.repos = service, repos
         if self.console is not None:
             self.console.service, self.console.repos = service, repos
 
-    async def close(self, *, user_id: int | None = None, agent_id: str | None = None) -> None:
-        for key in list(self._clients):
-            if (user_id is None or key[0] == user_id) and (agent_id is None or key[2] == agent_id):
-                await self._expire(key)
-
-    async def _expire(self, key: tuple[int, str, str, str, str]) -> None:
-        lock = self._locks.get(key)
-        if lock is None:
-            return
-        async with lock:
-            timer = self._timers.pop(key, None)
-            if timer:
-                timer.cancel()
-            client = self._clients.pop(key, None)
-            if client:
-                await client.aclose()
-
     async def build_tools(self, *, user_id: int, instance: Any, agent_id: str) -> list[Any]:
-        creds = await asyncio.to_thread(self._service.decrypt, instance.instance_id)
-        async with asyncio.timeout(25), _new_client(connection_spec(creds)) as client:
-            definitions = await client.get_tools()
-        session = _ScopedSession(self, instance.instance_id, agent_id)
-        tools: list[Any] = []
-        for definition in definitions.tools:
-            tool = convert_mcp_tool_to_langchain_tool(
-                cast(ClientSession, session),
-                definition,
-                server_name=instance.mcp_server_name,
-                tool_name_prefix=True,
-            )
+        tools = await super().build_tools(user_id=user_id, instance=instance, agent_id=agent_id)
+        for tool in tools:
             tool.description += "\n" + tr("connector.open_design.flow", "en")
-            tools.append(tool)
+        session = _ScopedSession(self, instance.instance_id, agent_id)
 
         for name, schema in {
             "list_resources": {"type": "object", "properties": {"cursor": {"type": "string"}}},
@@ -251,19 +202,12 @@ class OpenDesignRuntime:
         if row is None or row.user_id not in (None, user_id):
             raise ToolException(tr("connector.open_design.context_required", locale))
         creds = await asyncio.to_thread(self._service.decrypt, instance_id)
-        spec = connection_spec(creds)
-        key = (user_id, instance_id, agent_id, thread_id, fingerprint_mcp_spec(spec))
-        lock = self._locks.setdefault(key, asyncio.Lock())
-        async with lock:
-            timer = self._timers.pop(key, None)
-            if timer:
-                timer.cancel()
-            client = self._clients.get(key)
-            if client is None:
-                client = _new_client(spec)
-                self._clients[key] = client
-            task_key = f"open_design:task:{user_id}:{instance_id}:{agent_id}:{thread_id}"
-            try:
+        spec = overlay_stdio_spec_env(connection_spec(creds), self._env)
+        try:
+            async with self.session(
+                user_id, instance_id, agent_id, thread_id, spec, client_factory=_new_client
+            ) as client:
+                task_key = f"open_design:task:{user_id}:{instance_id}:{agent_id}:{thread_id}"
                 state = json.loads(
                     await asyncio.to_thread(self._repos.settings_repo.get, task_key) or "{}"
                 )
@@ -377,18 +321,10 @@ class OpenDesignRuntime:
                             {"status": "failed", "error": "generation_rejected"},
                         )
                 return result
-            except ToolException:
-                raise
-            except (Exception, BaseExceptionGroup) as exc:
-                self._clients.pop(key, None)
-                await client.aclose()
-                raise ToolException(tr("connector.open_design.connection_failed", locale)) from exc
-            finally:
-                if key in self._clients:
-                    self._timers[key] = asyncio.get_running_loop().call_later(
-                        _IDLE_SECONDS,
-                        lambda: asyncio.create_task(self._expire(key)),
-                    )
+        except ToolException:
+            raise
+        except (Exception, BaseExceptionGroup) as exc:
+            raise ToolException(tr("connector.open_design.connection_failed", locale)) from exc
 
 
 class _ScopedSession:

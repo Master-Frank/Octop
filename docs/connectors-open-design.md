@@ -72,13 +72,12 @@ MCP 进程；SSH 必须非交互且不分配 TTY。远端桥在实例内部调�
 
 持久化 daemon 存储遵循上游 [AGENTS.md 的数据目录约定](https://github.com/nexu-io/open-design/blob/main/AGENTS.md)。
 
-## 受管 MCP 接入
+## stdio 会话
 
-catalog 用 `mcp_mode: managed` 和 `runtime_handler` 声明由宿主管理会话。
-注册处理器提供凭据校验、连接配置和运行时工厂；通用连接器运行时只按声明分发选中的工具，
-并向已注册的运行时广播启动、关闭和持久化重绑定，不判断产品名称。
-OpenDesign 的会话隔离、需求状态和工具包装仍由自身处理器负责。
-普通 stdio 连接器继续由 Harness 加载，gateway 连接器保留启动后注入的既有路径。
+连接器使用标准 `mcp_mode: stdio`，与其他内置和自定义 stdio MCP 共用会话加载路径。
+Octop 在对话中按需加载工具，按用户、连接器、Agent、对话和配置指纹复用 MCP 连接，
+并在空闲、配置重载、Agent 停止或服务退出时释放。连接和工具调用仍遵循标准 MCP。
+OpenDesign 自身只扩展需求确认、任务状态与 Resources 操作；不再定义独立的 managed 模式或处理器协议。
 
 ## 行为与限制
 
@@ -108,6 +107,11 @@ OpenDesign 的会话隔离、需求状态和工具包装仍由自身处理器负
 下载、导出、完整 MCP Apps 宿主属于后续可选范围。
 
 ## English
+
+OpenDesign uses the standard stdio MCP mode. Built-in and custom stdio connectors
+share conversation-scoped connections; there is no separate managed transport or
+handler registration protocol. The Harness client owns the standard SDK session;
+OpenDesign adds only its brief, task and resource behavior.
 
 Create an OpenDesign connector and use local auto-detection on the Octop host.
 Install and open the application if prompted. The public Sidecar SDK discovers

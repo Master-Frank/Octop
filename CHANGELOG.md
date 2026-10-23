@@ -98,6 +98,7 @@
 ### 新增
 - OpenDesign 内置连接器：本机自动检测、MCP 配置导入、持续会话、设计任务跟踪与素材 Resources 读取。
 - OpenDesign 第二阶段：持久化后台任务与网页结果卡、素材和生成运行时选择、分层健康检查，以及带差异复核和摘要冲突检测的项目源码编辑。
+- 内置和自定义 stdio MCP 按对话复用会话，隔离用户与 Agent，并在空闲、重载和停止时释放连接。
 - `octop connector install/get/remove open-design`，支持外部 `od mcp install octop` 一键注册，加密保存启动配置。
 
 ### 修复

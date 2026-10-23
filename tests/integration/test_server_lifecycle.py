@@ -63,3 +63,25 @@ async def test_boot_then_stop_idempotent(tmp_octop_home: Path):
     await _bind_default_sqlite(srv)
     await srv.stop()
     await srv.stop()  # idempotent
+
+
+async def test_tracking_stops_before_agent_mcp_sessions(server: OctopServer, monkeypatch):
+    events = []
+    tracker = server._open_design_tasks
+    assert tracker is not None and server.app_runtime is not None
+    registry = server.app_runtime.agent_registry
+    original_stop = tracker.stop
+    original_shutdown = registry.shutdown
+
+    async def stop_tracking():
+        events.append("tracking")
+        await original_stop()
+
+    async def shutdown_agents():
+        events.append("sessions")
+        await original_shutdown()
+
+    monkeypatch.setattr(tracker, "stop", stop_tracking)
+    monkeypatch.setattr(registry, "shutdown", shutdown_agents)
+    await server.stop()
+    assert events == ["tracking", "sessions"]

@@ -37,7 +37,7 @@ def test_builtin_config_and_secret_preview() -> None:
     raw = {"command": sys.executable, "args": '["mcp"]', "env": '{"TOKEN":"secret"}'}
     creds = validate_create_credentials("open-design", raw)
     entry = get_catalog_entry("open-design")
-    assert entry is not None and entry.mcp_mode == "managed"
+    assert entry is not None and entry.mcp_mode == "stdio"
     assert build_http_mcp_spec(entry=entry, instance_id="i", creds=creds, config=OctopConfig())[
         "args"
     ] == ["mcp"]
@@ -79,7 +79,7 @@ def test_open_design_does_not_capture_other_stdio_connectors() -> None:
         config=OctopConfig(),
         log=False,
     )
-    assert configs["yuque__one"] == spec
+    assert configs["yuque__one"] == {}
 
 
 @pytest.mark.asyncio

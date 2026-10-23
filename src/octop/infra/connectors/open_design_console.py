@@ -12,11 +12,11 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 
 from octop.infra.connectors.open_design import (
-    _new_client,
     connection_spec,
     normalize_credentials,
     result_payload,
 )
+from octop.infra.connectors.stdio import new_stdio_client as _new_client
 from octop.infra.errors import ErrorCode, OctopError
 
 

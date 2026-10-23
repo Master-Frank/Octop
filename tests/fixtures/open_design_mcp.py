@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
+from mcp import types
 from mcp.server.fastmcp import FastMCP
 
 server = FastMCP("open-design-test")
@@ -56,6 +58,21 @@ def get_run(runId: str) -> dict[str, Any]:
 @server.resource("od://design-systems/test/DESIGN.md")
 def design() -> str:
     return "Use a blue accent."
+
+
+if os.environ.get("STDIO_TEST_PAGINATE") == "1":
+
+    async def paginated_tools(request: types.ListToolsRequest) -> types.ServerResult:
+        tools = await server.list_tools()
+        cursor = getattr(request.params, "cursor", None)
+        return types.ServerResult(
+            types.ListToolsResult(
+                tools=tools[:3] if cursor is None else tools[3:],
+                nextCursor="second" if cursor is None else None,
+            )
+        )
+
+    server._mcp_server.request_handlers[types.ListToolsRequest] = paginated_tools
 
 
 if __name__ == "__main__":

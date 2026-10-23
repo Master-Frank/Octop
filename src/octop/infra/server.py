@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from octop.infra.auth.ldap.service import LdapAuthService
     from octop.infra.auth.ldap.throttle import LdapBindThrottle
     from octop.infra.auth.sso.service import SsoService
+    from octop.infra.connectors.open_design_tasks import OpenDesignTasks
     from octop.infra.db.services import SharedServices
     from octop.infra.history.trajectory.service import TrajectoryService
 
@@ -327,6 +328,7 @@ class OctopServer:
         self.plugin_manager: PluginManager | None = None
         self.wizard_tokens = WizardTokenStore(ttl_seconds=300)
         self._started = False
+        self._open_design_tasks: OpenDesignTasks | None = None
         self._started_at: int | None = None
         self._sso_service: SsoService | None = None
         self._ldap_service: LdapAuthService | None = None
@@ -662,7 +664,9 @@ class OctopServer:
             self.services.provider_repo,
         )
         resume_pending_index_jobs(self.services)
-        await registry.connector_runtime.start()
+        tasks: OpenDesignTasks = registry.stdio_mcp_tools.runtime_for("open-design").tasks
+        self._open_design_tasks = tasks
+        await tasks.start()
 
         # Resume Bridge links that opted into auto-reconnect (best-effort).
         async def _resume_bridges() -> None:
@@ -766,6 +770,9 @@ class OctopServer:
                 await rt.proactive_scheduler.shutdown()
                 await rt.cron_manager.shutdown()
                 await rt.gateway.shutdown()
+                if self._open_design_tasks is not None:
+                    await self._open_design_tasks.stop()
+                    self._open_design_tasks = None
                 await rt.agent_registry.shutdown()
                 await rt.user_manager.shutdown_all()
                 if rt.history_archive is not None:

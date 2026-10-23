@@ -52,7 +52,7 @@ are updating `catalog.json` in the same change.
 | `qcc` | Qichacha | 企查查 | professional | oauth2 | internal |
 | `tencent-ardot` | Tencent Ardot | 腾讯设计 Ardot | office | oauth2 | remote |
 | `youdao-note` | Youdao Note | 有道云笔记 | knowledge | personal_token | remote |
-| `open-design` | OpenDesign | OpenDesign | self_hosted | custom_fields | managed |
+| `open-design` | OpenDesign | OpenDesign | self_hosted | custom_fields | stdio |
 | `notion` | Notion | Notion | knowledge | oauth2 | remote |
 | `openalex` | OpenAlex | OpenAlex | knowledge | oauth2 | remote |
 | `dida365` | TickTick | 滴答清单 | productivity | oauth2 | remote |
