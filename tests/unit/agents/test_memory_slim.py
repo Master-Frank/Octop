@@ -42,7 +42,7 @@ def make_manager(tmp_path):
     registry.memory_slim = MemorySlimCoordinator(registry)
     registry._lock = asyncio.Lock()
     registry._harness_manager = None
-    registry._connector_runtime = SimpleNamespace(shutdown=AsyncMock())
+    registry._stdio_mcp_tools = SimpleNamespace(close=AsyncMock())
     return registry.memory_slim, registry, memory, cfg, cp
 
 
