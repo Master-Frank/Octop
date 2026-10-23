@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from octop.infra.connectors.open_design_tasks import OpenDesignTasks
 
 from octop.i18n import tr
+from octop.infra.connectors.extensions import ConnectorExtension
 from octop.infra.connectors.stdio import StdioRuntime
 from octop.infra.connectors.stdio import new_stdio_client as _new_client
 from octop.infra.utils.env_file import overlay_stdio_spec_env
@@ -346,3 +347,23 @@ class _ScopedSession:
             return types.CallToolResult(
                 isError=True, content=[types.TextContent(type="text", text=str(exc))]
             )
+
+
+async def prepare_credentials(credentials: dict[str, Any]) -> dict[str, Any]:
+    """Resolve an explicit local auto-detection request before validation."""
+    from octop.infra.connectors.open_design_local import local_open_design_credentials
+
+    payload = dict(credentials)
+    if payload.pop("auto_detect", False) is True:
+        return await asyncio.to_thread(local_open_design_credentials)
+    return payload
+
+
+def connector_extension() -> ConnectorExtension:
+    return ConnectorExtension(
+        normalize_credentials=normalize_credentials,
+        prepare_credentials=prepare_credentials,
+        connection_spec=connection_spec,
+        probe=probe_open_design,
+        create_stdio_runtime=create_runtime,
+    )

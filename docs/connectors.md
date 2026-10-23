@@ -74,6 +74,15 @@ are updating `catalog.json` in the same change.
 | `stdio` | Managed persistent MCP subprocess, isolated per conversation. | 按对话隔离的持续 MCP 子进程。 |
 | `internal` | Octop hosts HTTP MCP at `/api/internal/mcp`; the harness loads it over HTTP. | Octop 在 `/api/internal/mcp` 托管 HTTP MCP，Harness 经 HTTP 加载。 |
 
+Connector-specific credential preparation, validation, probes, stdio specs and tool
+runtime construction live in the connector module. Bundled overrides are selected
+by the small dispatch table in `infra/connectors/extensions.py`; common callers do
+not branch on product names. This adds no MCP transport or session lifecycle API.
+
+连接器特有的凭据准备、校验、探测、stdio 配置及工具运行时构建由连接器模块提供，
+通过 `infra/connectors/extensions.py` 中的内置分发表选择。公共入口无需判断产品名称；
+该分发表不增加 MCP 传输模式或会话生命周期接口。
+
 ## Catalog JSON / 目录 JSON
 
 Each `connectors[]` object is a `ConnectorCatalogEntry`. User-facing strings are
