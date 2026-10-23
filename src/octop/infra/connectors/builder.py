@@ -17,6 +17,7 @@ from octop.infra.connectors.catalog import (
     uses_internal_http_mcp,
 )
 from octop.infra.connectors.custom_mcp import validate_mcp_http_url
+from octop.infra.connectors.extensions import get_connector_extension
 from octop.infra.connectors.mail_servers import resolve_mail_servers
 from octop.infra.utils.ulid import new_ulid
 
@@ -113,10 +114,9 @@ def _build_stdio_spec(entry: ConnectorCatalogEntry, creds: dict[str, Any]) -> di
     Built-in stdio connectors are bundled like remote/gateway ones, but instead of
     an HTTP URL the harness spawns a subprocess and speaks MCP over stdio.
     """
-    if entry.kind == "open-design":
-        from octop.infra.connectors.open_design import connection_spec
-
-        return connection_spec(creds)
+    extension = get_connector_extension(entry.kind)
+    if extension is not None:
+        return extension.connection_spec(creds)
     if entry.kind == "yuque-mcp":
         token = str(
             creds.get("token") or creds.get("api_key") or creds.get("personal_token") or ""
@@ -291,6 +291,10 @@ def validate_create_credentials(
         raise ValueError(f"unknown connector kind: {kind}")
     if entry.phase != "available":
         raise ValueError(f"connector {kind} is not available yet")
+
+    extension = get_connector_extension(kind)
+    if extension is not None:
+        return extension.normalize_credentials(credentials)
 
     out: dict[str, Any] = {}  # pre-declare to avoid mypy no-redef errors
 
@@ -477,10 +481,6 @@ def validate_create_credentials(
         }
 
     if entry.auth_kind == "custom_fields":
-        if entry.kind == "open-design":
-            from octop.infra.connectors.open_design import normalize_credentials
-
-            return normalize_credentials(credentials)
         if entry.kind == "agently-cli":
             # A caller must never select another instance's CLI credential directory.
             return {"internal_token": new_internal_token(), "cli_config_key": new_ulid()}
@@ -747,10 +747,9 @@ def inject_missing_gateway_tools(
 
 def create_stdio_runtime(kind: str, service: Any, repos: Any) -> Any:
     """Use the standard stdio session owner, with connector-specific tool behavior."""
-    if kind == "open-design":
-        from octop.infra.connectors.open_design import OpenDesignRuntime
-
-        return OpenDesignRuntime(service, repos)
+    extension = get_connector_extension(kind)
+    if extension is not None:
+        return extension.create_stdio_runtime(service, repos)
     from octop.infra.connectors.stdio import StdioRuntime
 
     return StdioRuntime(service, repos)
